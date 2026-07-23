@@ -30,7 +30,7 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { LoggerService } from './logger/logger.service';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { AnalyticsModule } from './analytics/analytics.module';
-import { ThrottlerModule, ThrottlerStorageRedisService } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerStorageService } from '@nestjs/throttler';
 import { AidEscrowModule } from './onchain/aid-escrow.module';
 import { CostAwareThrottlerGuard } from './common/guards/throttle.guard';
 import { getThrottlerConfig } from './common/config/rate-limit.config';
@@ -166,7 +166,7 @@ import { WebhooksModule } from 'src/webhooks.module';
 
           return {
             throttlers: getThrottlerConfig(),
-            storage: new ThrottlerStorageRedisService(client),
+            storage: new ThrottlerStorageService(client),
           };
         } catch (error) {
           console.warn(

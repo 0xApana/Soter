@@ -1,6 +1,5 @@
 import {
   Injectable,
-  _CanActivate,
   ExecutionContext,
   Inject,
 } from '@nestjs/common';
@@ -20,8 +19,12 @@ import { shouldSkipRateLimit } from '../config/rate-limit.config';
  */
 @Injectable()
 export class CostAwareThrottlerGuard extends ThrottlerGuard {
-  constructor(@Inject(Reflector) protected reflector: Reflector) {
-    super();
+  constructor(
+    protected readonly options: any,
+    protected readonly storageService: any,
+    @Inject(Reflector) protected readonly reflector: Reflector,
+  ) {
+    super(options, storageService, reflector);
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
