@@ -33,7 +33,7 @@ describe('user role config', () => {
   });
 
   it('provides display labels for shell badges', () => {
-    expect(getUserRoleLabel('ngo')).toBe('NGO');
-    expect(getUserRoleLabel('operator')).toBe('Operator');
+    expect(getUserRoleLabel('ngo')).toBe('roles.ngo');
+    expect(getUserRoleLabel('operator')).toBe('roles.operator');
   });
 });

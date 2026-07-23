@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Integration tests: navigation flow Home -> AidOverview -> AidDetails
  */
 import React from 'react';
@@ -8,7 +8,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeScreen } from '../screens/HomeScreen';
 import { AidOverviewScreen } from '../screens/AidOverviewScreen';
 import { AidDetailsScreen } from '../screens/AidDetailsScreen';
+import { ClaimReceiptScreen } from '../screens/ClaimReceiptScreen';
 import type { RootStackParamList } from '../navigation/types';
+import { ThemeProvider } from '../theme/ThemeContext';
+
+const mockQueueClaimConfirmation = jest.fn().mockResolvedValue({ status: 'completed', result: {} });
 
 // Mock heavy dependencies
 jest.mock('../contexts/WalletContext', () => ({
@@ -82,7 +86,7 @@ jest.mock('../contexts/SyncContext', () => ({
     lastCompletedAction: null,
     flushNow: jest.fn(),
     queueStatusRefresh: jest.fn(),
-    queueClaimConfirmation: jest.fn(),
+    queueClaimConfirmation: mockQueueClaimConfirmation,
     queueEvidenceUpload: jest.fn(),
     getActionsForAid: jest.fn().mockReturnValue([]),
   }),
@@ -90,18 +94,27 @@ jest.mock('../contexts/SyncContext', () => ({
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function TestNavigator({ initialRoute = 'Home' }: { initialRoute?: keyof RootStackParamList }) {
+function TestNavigator({
+  initialRoute = 'Home',
+  initialParams,
+}: {
+  initialRoute?: keyof RootStackParamList;
+  initialParams?: any;
+}) {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName={initialRoute as any}>
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="AidOverview" component={AidOverviewScreen} />
-        <Stack.Screen name="AidDetails" component={AidDetailsScreen} />
-        <Stack.Screen name="Settings" component={() => null} />
-        <Stack.Screen name="Health" component={() => null} />
-        <Stack.Screen name="Scanner" component={() => null} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName={initialRoute as any}>
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="AidOverview" component={AidOverviewScreen} />
+          <Stack.Screen name="AidDetails" component={AidDetailsScreen} initialParams={initialParams} />
+          <Stack.Screen name="ClaimReceipt" component={ClaimReceiptScreen} />
+          <Stack.Screen name="Settings" component={() => null} />
+          <Stack.Screen name="Health" component={() => null} />
+          <Stack.Screen name="Scanner" component={() => null} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
 
@@ -126,6 +139,19 @@ describe('Navigation: Home -> AidOverview -> AidDetails', () => {
     fireEvent.press(getByText(/Food Aid/i));
     await waitFor(() => {
       expect(getByText(/aid-1/i)).toBeTruthy();
+    });
+  });
+
+  it('shows claim receipt after confirming claim', async () => {
+    const { getByText } = render(
+      <TestNavigator initialRoute="AidDetails" initialParams={{ aidId: 'aid-1' }} />,
+    );
+
+    await waitFor(() => expect(getByText(/Package ID: aid-1/i)).toBeTruthy());
+    fireEvent.press(getByText(/Confirm Claim/i));
+
+    await waitFor(() => {
+      expect(getByText(/Your proof of claim completion/i)).toBeTruthy();
     });
   });
 });

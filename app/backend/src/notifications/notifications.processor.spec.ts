@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationType } from './interfaces/notification-job.interface';
 import { Job } from 'bullmq';
 import { DlqService } from '../jobs/dlq.service';
+import { MetricsService } from '../observability/metrics/metrics.service';
 
 describe('NotificationProcessor', () => {
   let processor: NotificationProcessor;
@@ -12,6 +13,7 @@ describe('NotificationProcessor', () => {
       update: jest.Mock;
     };
   };
+  let metricsMock: { incrementCallbackFailure: jest.Mock };
 
   const makeJob = (
     overrides: Partial<{
@@ -40,6 +42,7 @@ describe('NotificationProcessor', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     };
+    metricsMock = { incrementCallbackFailure: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,6 +56,10 @@ describe('NotificationProcessor', () => {
           useValue: {
             moveToDlq: jest.fn(),
           },
+        },
+        {
+          provide: MetricsService,
+          useValue: metricsMock,
         },
       ],
     }).compile();
@@ -146,11 +153,18 @@ describe('NotificationProcessor', () => {
   });
 
   describe('onFailed', () => {
-    it('should update outbox record to failed with retryCount increment and lastError when outboxId is present', async () => {
+    it('should update outbox record to failed with retryCount increment and lastError when outboxId is present and exhausted', async () => {
       const job = makeJob({ outboxId: 'outbox-abc' });
+      job.opts = { attempts: 1 } as any;
+      job.attemptsMade = 1;
       const error = new Error('Something went wrong');
 
       await processor.onFailed(job, error);
+
+      expect(metricsMock.incrementCallbackFailure).toHaveBeenCalledWith(
+        'notification_job',
+        'Something went wrong',
+      );
 
       expect(prismaMock.notificationOutbox.update).toHaveBeenCalledWith({
         where: { id: 'outbox-abc' },
@@ -158,6 +172,24 @@ describe('NotificationProcessor', () => {
           status: 'failed',
           retryCount: { increment: 1 },
           lastError: 'Something went wrong',
+        },
+      });
+    });
+
+    it('should keep status enqueued while retries remain and still increment retryCount', async () => {
+      const job = makeJob({ outboxId: 'outbox-abc' });
+      job.opts = { attempts: 3 } as any;
+      job.attemptsMade = 1;
+      const error = new Error('Temporary failure');
+
+      await processor.onFailed(job, error);
+
+      expect(prismaMock.notificationOutbox.update).toHaveBeenCalledWith({
+        where: { id: 'outbox-abc' },
+        data: {
+          status: 'enqueued',
+          retryCount: { increment: 1 },
+          lastError: 'Temporary failure',
         },
       });
     });

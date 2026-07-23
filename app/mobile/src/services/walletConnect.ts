@@ -1,6 +1,8 @@
 import * as ExpoLinking from 'expo-linking';
 import SignClient from '@walletconnect/sign-client';
 
+import { config, getStellarChainId } from '../config';
+
 const APP_SCHEME = 'soter';
 const DEFAULT_APP_URL = 'https://github.com/Pulsefy/Soter';
 const DEFAULT_ICON = 'https://raw.githubusercontent.com/Pulsefy/Soter/main/app/mobile/assets/icon.png';
@@ -47,19 +49,11 @@ type SessionShape = {
 let signClientPromise: Promise<SignClient> | null = null;
 
 const getWalletConnectProjectId = () => {
-  return process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ?? '';
+  return config.walletConnectProjectId;
 };
 
 export const getWalletConnectChainId = () => {
-  const override = process.env.EXPO_PUBLIC_WALLETCONNECT_STELLAR_CHAIN_ID?.trim();
-  if (override) {
-    return override;
-  }
-
-  const configuredNetwork = process.env.EXPO_PUBLIC_NETWORK?.trim().toLowerCase();
-  return configuredNetwork === 'mainnet' || configuredNetwork === 'public'
-    ? 'stellar:mainnet'
-    : 'stellar:testnet';
+  return getStellarChainId();
 };
 
 const getAppMetadata = () => ({

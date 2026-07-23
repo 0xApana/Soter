@@ -36,6 +36,25 @@ else
 	@./scripts/invoke.sh
 endif
 
+initialize:
+	@echo "🔧 Initializing contract..."
+	@./scripts/initialize.sh --contract $(CONTRACT_ID) --admin $(ADMIN)
+
+create-package:
+	@echo "📦 Creating package..."
+	@./scripts/create_package.sh --contract $(CONTRACT_ID) --operator $(OPERATOR) \
+		--id $(PKG_ID) --recipient $(RECIPIENT) --amount $(AMOUNT) --token $(TOKEN) \
+		--expires-at $(EXPIRES_AT)
+
+claim:
+	@echo "🎁 Claiming package..."
+	@./scripts/claim.sh --contract $(CONTRACT_ID) --id $(PKG_ID)
+
+query:
+	@echo "🔍 Querying contract..."
+	@./scripts/query.sh --contract $(CONTRACT_ID) --action $(ACTION) \
+		--id $(PKG_ID) --token $(TOKEN)
+
 audit:
 	@echo "🔒 Auditing dependencies..."
 	@cargo audit

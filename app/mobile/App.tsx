@@ -1,10 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as ExpoLinking from 'expo-linking';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  NavigationContainerRef,
+} from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { RootStackParamList, deepLinkToNavParams } from './src/navigation/types';
+import {
+  RootStackParamList,
+  deepLinkToNavParams,
+} from './src/navigation/types';
 import { WalletProvider } from './src/contexts/WalletContext';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { BiometricProvider } from './src/contexts/BiometricContext';
@@ -45,14 +51,16 @@ const linking = {
 const AppInner = () => {
   const { navTheme, scheme } = useTheme();
   const { pendingDeepLink, consumeDeepLink } = useNotification();
-  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const navigationRef =
+    useRef<NavigationContainerRef<RootStackParamList>>(null);
   const { isForceUpgrade, isLoading } = useUpdate();
+  const [isNavReady, setIsNavReady] = useState(false);
 
   // -----------------------------------------------------------------------
   // Navigate when a deep link is pending (from notification tap)
   // -----------------------------------------------------------------------
   useEffect(() => {
-    if (!pendingDeepLink) return;
+    if (!pendingDeepLink || !isNavReady) return;
 
     const navParams = deepLinkToNavParams(pendingDeepLink);
     if (!navParams) {
@@ -60,18 +68,14 @@ const AppInner = () => {
       return;
     }
 
-    const timer = setTimeout(() => {
-      if (navigationRef.current) {
-        navigationRef.current.navigate(
-          navParams.screen as any,
-          navParams.params as any,
-        );
-      }
+    if (navigationRef.current?.isReady?.()) {
+      navigationRef.current.navigate(
+        navParams.screen as any,
+        navParams.params as any,
+      );
       consumeDeepLink();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [pendingDeepLink, consumeDeepLink]);
+    }
+  }, [pendingDeepLink, isNavReady, consumeDeepLink]);
 
   if (isLoading) {
     return null;
@@ -89,6 +93,7 @@ const AppInner = () => {
             linking={linking}
             theme={navTheme}
             ref={navigationRef}
+            onReady={() => setIsNavReady(true)}
           >
             <AppNavigator />
             <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

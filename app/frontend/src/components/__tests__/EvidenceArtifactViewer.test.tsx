@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EvidenceArtifactViewer } from '../EvidenceArtifactViewer';
 import type { EvidenceArtifact } from '@/types/evidence-artifact';
@@ -37,8 +39,9 @@ describe('EvidenceArtifactViewer', () => {
     render(<EvidenceArtifactViewer artifact={mockArtifact} />);
 
     expect(screen.getByText('test-image.jpg')).toBeInTheDocument();
-    expect(screen.getByText('image')).toBeInTheDocument();
-    expect(screen.getByText('0.98 MB')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => {
+      return element?.tagName.toLowerCase() === 'span' && content.includes('image') && content.includes('0.98 MB');
+    })).toBeInTheDocument();
   });
 
   it('displays view mode controls based on permissions', () => {

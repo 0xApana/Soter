@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
+import { config } from '../config';
 
 // ---------------------------------------------------------------------------
 // Configure how notifications appear when the app is in the foreground
@@ -113,7 +114,7 @@ export async function getExpoPushToken(): Promise<string | null> {
 
   try {
     const { data } = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+      projectId: config.expoProjectId,
     });
     return data;
   } catch (error) {

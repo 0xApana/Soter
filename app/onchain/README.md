@@ -1,6 +1,14 @@
 # On-Chain Module (Soroban Contracts)
-//Comment
+
 This module contains Soroban smart contracts for Soter's on-chain escrow and claimable packages functionality.
+
+## 🌐 Deployed Contract (Testnet)
+
+| Contract      | Network | Contract ID                                                  | Docs |
+| :------------ | :------ | :----------------------------------------------------------- | :--- |
+| `aid_escrow`  | Testnet | `CDSBJ27PKTNFTRW6OKPCVXDRUSSRUIQUG6DW5PUTKLDXTDT23NQIS6JG`  | [Deployment Record](deployments/testnet-2026-06-03.md) |
+
+[View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDSBJ27PKTNFTRW6OKPCVXDRUSSRUIQUG6DW5PUTKLDXTDT23NQIS6JG) · [View on Stellar Lab](https://lab.stellar.org/r/testnet/contract/CDSBJ27PKTNFTRW6OKPCVXDRUSSRUIQUG6DW5PUTKLDXTDT23NQIS6JG)
 
 ## 🧠 AidEscrow Contract
 
@@ -70,10 +78,37 @@ Events use **stable topic identifiers** (struct name in snake_case) so indexers 
 ### Prerequisites
 ```bash
 # Install Rust
-curl --proto '=https' --tlsv1.2 -sSf [https://sh.rustup.rs](https://sh.rustup.rs) | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Add WebAssembly target
-rustup target add wasm32-unknown-unknown
+# Add WebAssembly target (Stellar CLI 26+)
+rustup target add wasm32v1-none
 
-# Install Soroban CLI
-cargo install --locked soroban-cli
+# Install Stellar CLI
+cargo install --locked stellar-cli
+```
+
+### Testnet invoke scripts
+
+Use `scripts/testnet-invoke.sh` for repeatable Testnet calls against the
+`aid_escrow` contract. The script loads `CONTRACT_ID`, `SOURCE_ACCOUNT`,
+`SECRET_KEY`, `DEPLOYER_SECRET_KEY`, and `TESTNET_RPC_URL` from `.env`, and
+also accepts those values as flags. Secrets are redacted in the printed command.
+
+```bash
+# Initialize the deployed contract.
+./scripts/testnet-invoke.sh initialize --admin GADMIN...
+
+# Create a package.
+./scripts/testnet-invoke.sh create-package \
+  --operator GADMIN... \
+  --id 1 \
+  --recipient GRECIPIENT... \
+  --amount 10000000 \
+  --token CTOKEN...
+
+# Claim and inspect package state.
+./scripts/testnet-invoke.sh claim --id 1
+./scripts/testnet-invoke.sh get-package --id 1
+./scripts/testnet-invoke.sh view-status --id 1
+./scripts/testnet-invoke.sh get-aggregates --token CTOKEN...
+```

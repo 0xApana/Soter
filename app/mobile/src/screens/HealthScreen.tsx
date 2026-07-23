@@ -9,22 +9,20 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Platform,
+  Clipboard,
+  Alert,
 } from 'react-native';
+import Constants from 'expo-constants';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { fetchHealthStatus, HealthStatus } from '../services/api';
 import { getMockHealthData } from '../services/mockData';
 import { useTheme } from '../theme/ThemeContext';
 import { AppColors } from '../theme/useAppTheme';
 
-// Derive environment label from EXPO_PUBLIC_ENV_NAME, falling back to a
-// short token extracted from the API URL (e.g. "localhost" → "dev").
-const getEnvLabel = (): string => {
-  const explicit = process.env.EXPO_PUBLIC_ENV_NAME;
-  if (explicit) return explicit;
-  const url = process.env.EXPO_PUBLIC_API_URL ?? '';
-  if (url.includes('staging')) return 'staging';
-  if (url.includes('prod')) return 'prod';
-  return 'dev';
-};
+import { config } from '../config';
+
+// Derive environment label from config
+const getEnvLabel = (): string => config.envName;
 
 const getEnvBadgeColor = (label: string): string => {
   switch (label.toLowerCase()) {
@@ -44,13 +42,16 @@ export const HealthScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isMockData, setIsMockData] = useState(false);
+  const [netInfo, setNetInfo] = useState<NetInfoState | null>(null);
+  const [apiReachable, setApiReachable] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const envLabel = getEnvLabel();
   const envBadgeColor = getEnvBadgeColor(envLabel);
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+  const apiUrl = config.apiUrl;
   const shortApiUrl = (() => {
     try {
       return new URL(apiUrl).host;
@@ -68,14 +69,17 @@ export const HealthScreen = () => {
         const data = await fetchHealthStatus();
         setHealthData(data);
         setIsMockData(false);
+        setApiReachable(true);
       } catch (err) {
         console.log('Using mock data fallback');
         setHealthData(getMockHealthData());
         setIsMockData(true);
         setError('Backend unreachable - showing mock data');
+        setApiReachable(false);
       }
     } catch (err) {
       setError('Failed to load health data');
+      setApiReachable(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -84,11 +88,69 @@ export const HealthScreen = () => {
 
   useEffect(() => {
     loadHealthData();
+
+    // Fetch initial network state
+    if (process.env.NODE_ENV === 'test') {
+      setNetInfo({
+        isConnected: true,
+        isInternetReachable: true,
+        type: 'wifi',
+        details: { isConnectionExpensive: false },
+      } as any);
+    } else {
+      void NetInfo.fetch().then((state) => {
+        setNetInfo(state);
+      });
+    }
+
+    // Subscribe to network state changes
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setNetInfo(state);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadHealthData(true);
+  };
+
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
+
+  const handleCopyDiagnostics = async () => {
+    const formattedNetworkType = netInfo?.type ? netInfo.type.toUpperCase() : 'UNKNOWN';
+    const formattedInternetReachable = netInfo?.isInternetReachable === true 
+      ? 'Yes' 
+      : netInfo?.isInternetReachable === false 
+        ? 'No' 
+        : 'Unknown';
+    const formattedApiReachable = apiReachable === true 
+      ? 'Reachable' 
+      : apiReachable === false 
+        ? 'Unreachable' 
+        : 'Checking...';
+
+    const diagnosticsText = `Soter App Diagnostics
+---------------------
+App Version: ${appVersion}
+Platform: ${Platform.OS === 'android' ? 'Android' : 'iOS'}
+Environment: ${envLabel}
+API URL: ${apiUrl}
+API Reachability: ${formattedApiReachable}
+Network Connected: ${netInfo?.isConnected ? 'Yes' : 'No'}
+Network Type: ${formattedNetworkType}
+Internet Reachable: ${formattedInternetReachable}
+Contract ID: ${config.sorobanContractId || 'None'}
+Timestamp: ${new Date().toISOString()}`;
+
+    try {
+      await Clipboard.setString(diagnosticsText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to copy diagnostics');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -201,6 +263,54 @@ export const HealthScreen = () => {
             </View>
           )}
 
+          {/* ── Configuration Errors ────────────────────────────────────────── */}
+          {!config.isValid && (
+            <View
+              style={styles.configErrorContainer}
+              accessible
+              accessibilityRole="alert"
+            >
+              <Text style={styles.configErrorTitle}>⚠️ Configuration Issues</Text>
+              {config.errors.map((err, index) => (
+                <Text key={index} style={styles.configErrorText}>• {err}</Text>
+              ))}
+            </View>
+          )}
+
+          {/* ── Environment & Blockchain Section ─────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Environment & Blockchain
+            </Text>
+            <View style={styles.card}>
+              <View style={styles.infoRow} accessible accessibilityLabel={`Network: ${config.network}`}>
+                <Text style={styles.infoLabel}>Network:</Text>
+                <Text style={styles.infoValue}>{config.network.toUpperCase()}</Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`API URL: ${config.apiUrl}`}>
+                <Text style={styles.infoLabel}>Backend URL:</Text>
+                <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">
+                  {config.apiUrl}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`Contract ID: ${config.sorobanContractId || 'Not Configured'}`}>
+                <Text style={styles.infoLabel}>Contract ID:</Text>
+                <Text style={[styles.infoValue, !config.sorobanContractId && { color: colors.warning }]} numberOfLines={1} ellipsizeMode="middle">
+                  {config.sorobanContractId || 'None'}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`Config Status: ${config.isValid ? 'Valid' : 'Invalid'}`}>
+                <Text style={styles.infoLabel}>Config Status:</Text>
+                <Text style={[styles.infoValue, { color: config.isValid ? colors.success : colors.error }]}>
+                  {config.isValid ? 'VALID ✅' : 'INVALID ❌'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
           {/* ── Health Data Card ────────────────────────────────────────── */}
           {healthData && (
             <View
@@ -272,6 +382,58 @@ export const HealthScreen = () => {
             </View>
           )}
 
+          {/* ── Safe Diagnostics Section ─────────────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Diagnostics
+            </Text>
+            <View style={styles.card}>
+              <View style={styles.infoRow} accessible accessibilityLabel={`App Version: ${appVersion}`}>
+                <Text style={styles.infoLabel}>App Version:</Text>
+                <Text style={styles.infoValue}>{appVersion}</Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`API Reachability: ${apiReachable === true ? 'Reachable' : apiReachable === false ? 'Unreachable' : 'Checking...'}`}>
+                <Text style={styles.infoLabel}>API Reachability:</Text>
+                <Text style={[styles.infoValue, { color: apiReachable === true ? colors.success : apiReachable === false ? colors.error : colors.textSecondary }]}>
+                  {apiReachable === true ? 'REACHABLE ✅' : apiReachable === false ? 'UNREACHABLE ❌' : 'CHECKING...'}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`Network Connection: ${netInfo?.isConnected ? 'Connected' : 'Disconnected'}`}>
+                <Text style={styles.infoLabel}>Network Status:</Text>
+                <Text style={[styles.infoValue, { color: netInfo?.isConnected ? colors.success : colors.error }]}>
+                  {netInfo?.isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`Network Type: ${netInfo?.type ? netInfo.type.toUpperCase() : 'UNKNOWN'}`}>
+                <Text style={styles.infoLabel}>Network Type:</Text>
+                <Text style={styles.infoValue}>{netInfo?.type ? netInfo.type.toUpperCase() : 'UNKNOWN'}</Text>
+              </View>
+
+              <View style={styles.infoRow} accessible accessibilityLabel={`Internet Reachable: ${netInfo?.isInternetReachable === true ? 'Yes' : netInfo?.isInternetReachable === false ? 'No' : 'Unknown'}`}>
+                <Text style={styles.infoLabel}>Internet Reachable:</Text>
+                <Text style={[styles.infoValue, { color: netInfo?.isInternetReachable === true ? colors.success : netInfo?.isInternetReachable === false ? colors.error : colors.textSecondary }]}>
+                  {netInfo?.isInternetReachable === true ? 'YES' : netInfo?.isInternetReachable === false ? 'NO' : 'UNKNOWN'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.copyButton, copied && styles.copyButtonActive]}
+              accessibilityRole="button"
+              accessibilityLabel="Copy Diagnostics to Clipboard"
+              accessibilityHint="Copies non-sensitive diagnostics information to your clipboard for debugging"
+              onPress={handleCopyDiagnostics}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.copyButtonText, copied && { color: colors.success }]}>
+                {copied ? '✅ Diagnostics Copied!' : '📋 Copy Diagnostics'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* ── Quick Stats ─────────────────────────────────────────────── */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle} accessibilityRole="header">
@@ -279,17 +441,6 @@ export const HealthScreen = () => {
             </Text>
 
             <View style={styles.statsGrid}>
-              <View
-                style={styles.statItem}
-                accessible
-                accessibilityLabel={`API URL: ${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}`}
-              >
-                <Text style={styles.statLabel} importantForAccessibility="no-hide-descendants">API URL</Text>
-                <Text style={styles.statValue} numberOfLines={1} importantForAccessibility="no-hide-descendants">
-                  {process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}
-                </Text>
-              </View>
-
               <View
                 style={styles.statItem}
                 accessible
@@ -327,7 +478,7 @@ export const HealthScreen = () => {
               </Text>
               <Text style={styles.tipText}>
                 • Check if API URL is correct:{' '}
-                {process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}
+                {config.apiUrl}
               </Text>
               <Text style={styles.tipText}>
                 • For Android emulator, use 10.0.2.2 instead of localhost
@@ -362,27 +513,24 @@ export const HealthScreen = () => {
             <View
               style={styles.footerEnvRow}
               testID="footer-env-row"
-              accessible
               accessibilityLabel={`Environment: ${envLabel} · ${shortApiUrl}`}
             >
-              <Text style={styles.footerEnvLabel} importantForAccessibility="no-hide-descendants">
+              <Text style={styles.footerEnvLabel}>
                 Environment:{' '}
               </Text>
               <Text
                 testID="footer-env-name"
                 style={[styles.footerEnvValue, { color: envBadgeColor }]}
-                importantForAccessibility="no-hide-descendants"
               >
                 {envLabel}
               </Text>
-              <Text style={styles.footerEnvSeparator} importantForAccessibility="no-hide-descendants">
+              <Text style={styles.footerEnvSeparator}>
                 {' '}·{' '}
               </Text>
               <Text
                 testID="footer-api-url"
                 style={styles.footerEnvUrl}
                 numberOfLines={1}
-                importantForAccessibility="no-hide-descendants"
               >
                 {shortApiUrl}
               </Text>
@@ -447,6 +595,25 @@ const makeStyles = (colors: AppColors) =>
     errorText: {
       color: colors.error,
       fontSize: 14,
+    },
+    configErrorContainer: {
+      backgroundColor: colors.errorBg,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.errorBorder,
+    },
+    configErrorTitle: {
+      color: colors.error,
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginBottom: 8,
+    },
+    configErrorText: {
+      color: colors.error,
+      fontSize: 14,
+      marginBottom: 4,
     },
     card: {
       backgroundColor: colors.surface,
@@ -635,5 +802,25 @@ const makeStyles = (colors: AppColors) =>
       fontSize: 11,
       color: colors.textSecondary,
       flexShrink: 1,
+    },
+    copyButton: {
+      backgroundColor: colors.infoBg,
+      borderColor: colors.border,
+      borderWidth: 1,
+      padding: 14,
+      minHeight: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    copyButtonActive: {
+      backgroundColor: colors.background === '#0F172A' ? '#14532D' : '#DCFCE7',
+      borderColor: colors.success,
+    },
+    copyButtonText: {
+      color: colors.info,
+      fontSize: 16,
+      fontWeight: '600',
     },
   });

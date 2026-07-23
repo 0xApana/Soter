@@ -3,10 +3,12 @@ import { NotificationsService } from './notifications.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { NotificationType } from './interfaces/notification-job.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoggerService } from '../logger/logger.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let queueMock: jest.Mocked<{ add: jest.Mock }>;
+  let loggerMock: { getCorrelationId: jest.Mock };
   let prismaMock: {
     notificationOutbox: {
       create: jest.Mock;
@@ -38,6 +40,9 @@ describe('NotificationsService', () => {
     queueMock = {
       add: jest.fn().mockResolvedValue({ id: 'job-123' }),
     };
+    loggerMock = {
+      getCorrelationId: jest.fn().mockReturnValue(undefined),
+    };
 
     prismaMock = {
       notificationOutbox: {
@@ -62,6 +67,10 @@ describe('NotificationsService', () => {
         {
           provide: PrismaService,
           useValue: prismaMock,
+        },
+        {
+          provide: LoggerService,
+          useValue: loggerMock,
         },
       ],
     }).compile();
@@ -131,6 +140,33 @@ describe('NotificationsService', () => {
           outboxId: mockOutbox.id,
         }),
         expect.any(Object),
+      );
+    });
+
+    it('should default email job correlationId from the active request context', async () => {
+      loggerMock.getCorrelationId.mockReturnValue('request-correlation-123');
+
+      await service.sendEmail('test@example.com', 'Subject', 'Message');
+
+      expect(queueMock.add).toHaveBeenCalledWith(
+        'send-email',
+        expect.objectContaining({
+          correlationId: 'request-correlation-123',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should configure exponential backoff retries for email jobs', async () => {
+      await service.sendEmail('test@example.com', 'Subject', 'Message');
+
+      expect(queueMock.add).toHaveBeenCalledWith(
+        'send-email',
+        expect.any(Object),
+        expect.objectContaining({
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        }),
       );
     });
 
@@ -224,6 +260,33 @@ describe('NotificationsService', () => {
           outboxId: mockOutbox.id,
         }),
         expect.any(Object),
+      );
+    });
+
+    it('should default SMS job correlationId from the active request context', async () => {
+      loggerMock.getCorrelationId.mockReturnValue('sms-correlation-123');
+
+      await service.sendSms('+1234567890', 'Test SMS');
+
+      expect(queueMock.add).toHaveBeenCalledWith(
+        'send-sms',
+        expect.objectContaining({
+          correlationId: 'sms-correlation-123',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should configure exponential backoff retries for SMS jobs', async () => {
+      await service.sendSms('+1234567890', 'Test SMS');
+
+      expect(queueMock.add).toHaveBeenCalledWith(
+        'send-sms',
+        expect.any(Object),
+        expect.objectContaining({
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        }),
       );
     });
 

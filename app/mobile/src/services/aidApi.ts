@@ -1,8 +1,6 @@
-import { Platform } from 'react-native';
+import { config } from '../config';
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+const API_URL = config.apiUrl;
 
 export interface AidItem {
   id: string;
@@ -77,6 +75,21 @@ export const getMockAidList = (): AidItem[] => [
     createdAt: new Date().toISOString(),
   },
 ];
+
+/** Submit a claim to the backend with an idempotency key */
+export const submitClaim = async (claimId: string, idempotencyKey: string): Promise<unknown> => {
+  const response = await fetch(`${API_URL}/claims/${claimId}/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
 
 /** Fallback mock detail data */
 export const getMockAidDetails = (aidId: string): AidDetails => ({

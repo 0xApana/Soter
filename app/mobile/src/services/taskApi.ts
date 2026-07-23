@@ -1,8 +1,6 @@
-import { Platform } from 'react-native';
+import { config } from '../config';
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+const API_URL = config.apiUrl;
 
 export type TaskStatus = 'pending' | 'in-progress' | 'completed';
 export type TaskDueState = 'due-today' | 'overdue' | 'upcoming';

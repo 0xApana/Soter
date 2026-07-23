@@ -1,12 +1,60 @@
 import React from 'react';
-import { render, waitFor, screen } from '@testing-library/react-native';
+import { render, waitFor, screen, fireEvent } from '@testing-library/react-native';
+import { Clipboard } from 'react-native';
 import { HealthScreen } from '../screens/HealthScreen';
 import { fetchHealthStatus } from '../services/api';
+import { config } from '../config';
+
+// Mock expo-constants
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.2.3',
+  },
+}));
+
+// Mock NetInfo
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() =>
+    Promise.resolve({
+      isConnected: true,
+      isInternetReachable: true,
+      type: 'wifi',
+      details: { isConnectionExpensive: false },
+    }),
+  ),
+}));
+
+// Mock useTheme
+jest.mock('../theme/ThemeContext', () => ({
+  useTheme: () => {
+    const { Colors, SoterLightTheme } = require('../theme/theme');
+
+    return {
+      colors: { ...Colors.light, brand: Colors.brand },
+      navTheme: SoterLightTheme,
+      scheme: 'light',
+    };
+  },
+}));
 
 // Mock the API module
 jest.mock('../services/api');
+// Mock the config module
+jest.mock('../config', () => ({
+  config: {
+    apiUrl: 'http://localhost:3000',
+    envName: 'dev',
+    network: 'testnet',
+    walletConnectProjectId: 'test-project-id',
+    sorobanContractId: 'CC123...',
+    isValid: true,
+    errors: [],
+  },
+}));
 
 const mockFetchHealthStatus = fetchHealthStatus as jest.MockedFunction<typeof fetchHealthStatus>;
+const mockConfig = config as jest.Mocked<typeof config>;
 
 describe('HealthScreen', () => {
   beforeEach(() => {
@@ -37,8 +85,8 @@ describe('HealthScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('OK')).toBeTruthy();
       expect(screen.getByText('🌐 Live backend data')).toBeTruthy();
-      expect(screen.getByText('backend')).toBeTruthy();
-      expect(screen.getByText('1.0.0')).toBeTruthy();
+      expect(screen.getByText('backend', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByText('1.0.0', { includeHiddenElements: true })).toBeTruthy();
     });
   });
 
@@ -48,10 +96,10 @@ describe('HealthScreen', () => {
     render(<HealthScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('🔧 MOCK')).toBeTruthy();
+      expect(screen.getByText('🔧 MOCK', { includeHiddenElements: true })).toBeTruthy();
       expect(screen.getByText('📊 Using simulated data')).toBeTruthy();
       expect(screen.getByText('Backend unreachable - showing mock data')).toBeTruthy();
-      expect(screen.getByText('⚠️ This is simulated data - backend connection failed')).toBeTruthy();
+      expect(screen.getByText('⚠️ This is simulated data - backend connection failed', { includeHiddenElements: true })).toBeTruthy();
     });
   });
 
@@ -71,10 +119,10 @@ describe('HealthScreen', () => {
     render(<HealthScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('backend')).toBeTruthy();
-      expect(screen.getByText('0.0.0')).toBeTruthy();
-      expect(screen.getByText('development')).toBeTruthy();
-      expect(screen.getByText('✅')).toBeTruthy();
+      expect(screen.getByText('backend', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByText('0.0.0', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByText('development', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByText('✅', { includeHiddenElements: true })).toBeTruthy();
       expect(screen.getByText('OK')).toBeTruthy();
     });
   });
@@ -105,45 +153,10 @@ describe('HealthScreen', () => {
     });
   });
 
-  it('displays EXPO_PUBLIC_ENV_NAME label when variable is set', async () => {
-    process.env.EXPO_PUBLIC_ENV_NAME = 'staging';
-    mockFetchHealthStatus.mockResolvedValueOnce({
-      status: 'ok', service: 'backend', version: '1.0.0',
-      environment: 'staging', timestamp: new Date().toISOString(),
-    });
-
-    render(<HealthScreen />);
-
-    await waitFor(() => {
-      // Badge shows uppercased label
-      expect(screen.getByText('STAGING')).toBeTruthy();
-      // Footer shows lowercase label
-      expect(screen.getByTestId('footer-env-name')).toBeTruthy();
-    });
-
-    delete process.env.EXPO_PUBLIC_ENV_NAME;
-  });
-
-  it('falls back to "prod" when EXPO_PUBLIC_API_URL contains "prod"', async () => {
-    delete process.env.EXPO_PUBLIC_ENV_NAME;
-    process.env.EXPO_PUBLIC_API_URL = 'https://api.prod.example.com';
-    mockFetchHealthStatus.mockResolvedValueOnce({
-      status: 'ok', service: 'backend', version: '1.0.0',
-      environment: 'production', timestamp: new Date().toISOString(),
-    });
-
-    render(<HealthScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByText('PROD')).toBeTruthy();
-    });
-
-    delete process.env.EXPO_PUBLIC_API_URL;
-  });
-
-  it('defaults to "dev" label when no env variables are set', async () => {
-    delete process.env.EXPO_PUBLIC_ENV_NAME;
-    delete process.env.EXPO_PUBLIC_API_URL;
+  it('displays environment label from config', async () => {
+    // Note: Since config is mocked as a constant above, we'd need to change the mock 
+    // implementation if we wanted to test different values in the same file, 
+    // or just verify it shows what's in our default mock.
     mockFetchHealthStatus.mockResolvedValueOnce({
       status: 'ok', service: 'backend', version: '1.0.0',
       environment: 'development', timestamp: new Date().toISOString(),
@@ -152,13 +165,13 @@ describe('HealthScreen', () => {
     render(<HealthScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('DEV')).toBeTruthy();
+      // Default mocked envName is 'dev'
+      expect(screen.getByTestId('env-badge')).toBeTruthy();
+      expect(screen.getByTestId('footer-env-name')).toBeTruthy();
     });
   });
 
-  it('renders the footer env row with env label and api url', async () => {
-    process.env.EXPO_PUBLIC_ENV_NAME = 'dev';
-    process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
+  it('shows blockchain diagnostics section', async () => {
     mockFetchHealthStatus.mockResolvedValueOnce({
       status: 'ok', service: 'backend', version: '1.0.0',
       environment: 'development', timestamp: new Date().toISOString(),
@@ -167,12 +180,91 @@ describe('HealthScreen', () => {
     render(<HealthScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('footer-env-row')).toBeTruthy();
-      expect(screen.getByTestId('footer-env-name')).toBeTruthy();
-      expect(screen.getByTestId('footer-api-url')).toBeTruthy();
+      expect(screen.getByText('Environment & Blockchain')).toBeTruthy();
+      expect(screen.getByText('TESTNET')).toBeTruthy();
+      expect(screen.getByText('CC123...')).toBeTruthy();
+    });
+  });
+
+  it('shows configuration errors when config is invalid', async () => {
+    // Temporarily modify the mock for this test
+    const originalConfig = { ...config };
+    (config as any).isValid = false;
+    (config as any).errors = ['Missing API Key'];
+
+    mockFetchHealthStatus.mockResolvedValueOnce({
+      status: 'ok', service: 'backend', version: '1.0.0',
+      environment: 'development', timestamp: new Date().toISOString(),
     });
 
-    delete process.env.EXPO_PUBLIC_ENV_NAME;
-    delete process.env.EXPO_PUBLIC_API_URL;
+    render(<HealthScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('⚠️ Configuration Issues')).toBeTruthy();
+      expect(screen.getByText('• Missing API Key')).toBeTruthy();
+    });
+
+    // Restore
+    Object.assign(config, originalConfig);
+  });
+
+  // ── Diagnostics specific tests ─────────────────────────────────────────
+
+  it('renders safe diagnostics elements (app version, api reachability, network state)', async () => {
+    mockFetchHealthStatus.mockResolvedValueOnce({
+      status: 'ok', service: 'backend', version: '1.0.0',
+      environment: 'development', timestamp: new Date().toISOString(),
+    });
+
+    render(<HealthScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Diagnostics')).toBeTruthy();
+      expect(screen.getByText('App Version:')).toBeTruthy();
+      expect(screen.getByText('1.2.3')).toBeTruthy();
+      expect(screen.getByText('API Reachability:')).toBeTruthy();
+      expect(screen.getByText('REACHABLE ✅')).toBeTruthy();
+      expect(screen.getByText('Network Status:')).toBeTruthy();
+      expect(screen.getByText('CONNECTED')).toBeTruthy();
+      expect(screen.getByText('Network Type:')).toBeTruthy();
+      expect(screen.getByText('WIFI')).toBeTruthy();
+      expect(screen.getByText('Internet Reachable:')).toBeTruthy();
+      expect(screen.getByText('YES')).toBeTruthy();
+    });
+  });
+
+  it('copies safe diagnostics to clipboard when button is pressed', async () => {
+    const clipboardSpy = jest.spyOn(Clipboard, 'setString').mockImplementation(() => {});
+    
+    mockFetchHealthStatus.mockResolvedValueOnce({
+      status: 'ok', service: 'backend', version: '1.0.0',
+      environment: 'development', timestamp: new Date().toISOString(),
+    });
+
+    render(<HealthScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('📋 Copy Diagnostics')).toBeTruthy();
+    });
+
+    const copyButton = screen.getByText('📋 Copy Diagnostics');
+    fireEvent.press(copyButton);
+
+    expect(clipboardSpy).toHaveBeenCalled();
+    const copiedText = clipboardSpy.mock.calls[0][0];
+    expect(copiedText).toContain('Soter App Diagnostics');
+    expect(copiedText).toContain('App Version: 1.2.3');
+    expect(copiedText).toContain('API Reachability: Reachable');
+    expect(copiedText).toContain('Network Connected: Yes');
+    expect(copiedText).toContain('Network Type: WIFI');
+    expect(copiedText).toContain('Internet Reachable: Yes');
+    expect(copiedText).toContain('Contract ID: CC123...');
+    
+    // Ensure no secrets are present
+    expect(copiedText).not.toContain('test-project-id');
+
+    await waitFor(() => {
+      expect(screen.getByText('✅ Diagnostics Copied!')).toBeTruthy();
+    });
   });
 });

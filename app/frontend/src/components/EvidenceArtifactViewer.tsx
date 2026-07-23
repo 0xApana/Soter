@@ -326,6 +326,7 @@ export const EvidenceArtifactViewer: React.FC<EvidenceArtifactViewerProps> = ({
         <div className="flex items-center space-x-2 mt-3">
           <button
             onClick={handleZoomOut}
+            aria-label="Zoom Out"
             className="p-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,6 +338,7 @@ export const EvidenceArtifactViewer: React.FC<EvidenceArtifactViewerProps> = ({
           </span>
           <button
             onClick={handleZoomIn}
+            aria-label="Zoom In"
             className="p-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,6 +347,7 @@ export const EvidenceArtifactViewer: React.FC<EvidenceArtifactViewerProps> = ({
           </button>
           <button
             onClick={handleZoomReset}
+            aria-label="Reset"
             className="p-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

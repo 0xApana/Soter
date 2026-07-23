@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 
 import { DlqService } from '../jobs/dlq.service';
+import { MetricsService } from '../observability/metrics/metrics.service';
 
 @Processor('notifications', {
   concurrency: parseInt(process.env.QUEUE_CONCURRENCY || '5'),
@@ -18,6 +19,7 @@ export class NotificationProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dlqService: DlqService,
+    private readonly metricsService: MetricsService,
   ) {
     super();
   }
@@ -67,6 +69,10 @@ export class NotificationProcessor extends WorkerHost {
         `Notification job ${job.id} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         error instanceof Error ? error.stack : undefined,
       );
+      this.metricsService.incrementCallbackFailure(
+        'notification_delivery',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }
@@ -106,6 +112,10 @@ export class NotificationProcessor extends WorkerHost {
       this.logger.error(
         `Notification job ${job.id} for ${job.data.recipient} failed: ${error.message}`,
       );
+      this.metricsService.incrementCallbackFailure(
+        'notification_job',
+        error.message,
+      );
       await this.dlqService.moveToDlq('notifications', job, error);
     } else {
       this.logger.error(`Notification job failed: ${error.message}`);
@@ -119,11 +129,16 @@ export class NotificationProcessor extends WorkerHost {
       return;
     }
 
+    const maxAttempts =
+      typeof job.opts?.attempts === 'number' ? job.opts.attempts : 1;
+    const exhausted = job.attemptsMade >= maxAttempts;
+    const status = exhausted ? 'failed' : 'enqueued';
+
     try {
       await this.prisma.notificationOutbox.update({
         where: { id: job.data.outboxId },
         data: {
-          status: 'failed',
+          status,
           retryCount: { increment: 1 },
           lastError: error.message,
         },
@@ -131,7 +146,7 @@ export class NotificationProcessor extends WorkerHost {
     } catch (err) {
       // Swallow — worker events must not throw
       this.logger.error(
-        `Failed to update outbox record ${job.data.outboxId} to failed: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to update outbox record ${job.data.outboxId} to ${status}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }

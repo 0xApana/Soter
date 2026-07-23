@@ -23,6 +23,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { ScopesGuard } from './api-keys/scopes.guard';
 import { ObservabilityModule } from './observability/observability.module';
 import { ClaimsModule } from './claims/claims.module';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
@@ -38,9 +39,17 @@ import { EvidenceModule } from './evidence/evidence.module';
 import { RetentionPolicyModule } from './retention-policy/retention-policy.module';
 import { InvitesModule } from './orgs/invites.module';
 import { AdminSearchModule } from './search/admin-search.module';
+import { EntityLinkingModule } from './entity-linking/entity-linking.module';
+import { DeploymentMetadataModule } from './deployment-metadata/deployment-metadata.module';
 import { RedisModule } from '@liaoliaots/nestjs-redis';
 import { AdaptiveRateLimitGuard } from './common/guards/adaptive-rate-limit.guard';
 import { DeprecationInterceptor } from './common/interceptors/deprecation.interceptor';
+import { SandboxModule } from './sandbox/sandbox.module';
+import { CacheModule } from './common/cache/cache.module';
+import { CacheResponseInterceptor } from './common/interceptors/cache-response.interceptor';
+
+import { WebhooksModule } from 'src/webhooks.module';
+import { CorrelationModule } from './common/modules/correlation.module';
 
 @Module({
   imports: [
@@ -87,6 +96,7 @@ import { DeprecationInterceptor } from './common/interceptors/deprecation.interc
 
     LoggerModule,
     PrismaModule,
+    CacheModule,
     HealthModule,
     AidModule,
     VerificationModule,
@@ -107,6 +117,11 @@ import { DeprecationInterceptor } from './common/interceptors/deprecation.interc
     RetentionPolicyModule,
     InvitesModule,
     AdminSearchModule,
+    EntityLinkingModule,
+    DeploymentMetadataModule,
+    SandboxModule,
+    WebhooksModule,
+    CorrelationModule,
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -142,6 +157,10 @@ import { DeprecationInterceptor } from './common/interceptors/deprecation.interc
     },
     {
       provide: APP_GUARD,
+      useClass: ScopesGuard, // runs third — checks request.user.scopes against @Scopes()
+    },
+    {
+      provide: APP_GUARD,
       useClass: AdaptiveRateLimitGuard, // Adaptive rate limiting using Redis
     },
     {
@@ -151,6 +170,10 @@ import { DeprecationInterceptor } from './common/interceptors/deprecation.interc
     {
       provide: APP_INTERCEPTOR,
       useClass: DeprecationInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheResponseInterceptor,
     },
   ],
 })
