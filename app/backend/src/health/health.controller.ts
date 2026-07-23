@@ -125,4 +125,16 @@ export class HealthController {
     // Throw an error to test exception handling
     throw new Error('This is a test error for logging demonstration');
   }
+
+  @Public()
+  @Get('diagnostics')
+  @Version(API_VERSIONS.V1)
+  @ApiOperation({
+    summary: 'Export support diagnostics bundle',
+    description:
+      'Returns a support-friendly diagnostics export containing sanitized application state, queue health, wallet/network status, error logs, timestamps, and app version metadata.',
+  })
+  async exportDiagnostics() {
+    return this.healthService.getDiagnosticsExport();
+  }
 }
