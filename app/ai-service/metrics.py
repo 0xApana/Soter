@@ -23,6 +23,9 @@ MODEL_LOAD_TIME = Histogram('model_load_time_seconds', 'Model load time in secon
 INFERENCE_LATENCY = Histogram('inference_latency_seconds', 'Inference latency in seconds', ['task_type'])
 PIPELINE_STEP_LATENCY = Histogram('pipeline_step_latency_seconds', 'Pipeline step latency in seconds', ['step_name'])
 
+JOB_CANCELLED_TOTAL = Counter('job_cancelled_total', 'Total jobs cancelled', ['task_type'])
+JOB_EXPIRED_TOTAL = Counter('job_expired_total', 'Total jobs expired', ['task_type'])
+
 def check_system_resources(memory_threshold_percent: float = 90.0) -> bool:
     """
     Check if system RAM or VRAM is above threshold.
