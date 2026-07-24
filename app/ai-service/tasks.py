@@ -422,7 +422,7 @@ def get_task_status(task_id: str) -> Dict[str, Any]:
         dict: Task status information
     """
     local_status = task_results.get(task_id)
-    if local_status and local_status.get('status') in {'completed', 'failed', 'retrying', 'cancelled'}:
+    if local_status and local_status.get('status') in {'completed', 'failed', 'retrying', 'cancelled', 'expired'}:
         return {
             'task_id': task_id,
             **local_status,
@@ -494,6 +494,28 @@ def create_task(task_type: str, payload: Dict[str, Any]) -> str:
         update_task_status(task_id, 'failed', error=str(e))
         raise
     
+    
     logger.info(f"Created task {task_id} of type {task_type}")
     
     return task_id
+
+
+def cancel_task(task_id: str) -> None:
+    """
+    Cancel a background task.
+    """
+    from celery.result import AsyncResult
+    result = AsyncResult(task_id, app=get_celery_app())
+    result.revoke(terminate=True)
+    update_task_status(task_id, 'cancelled')
+
+
+def expire_task(task_id: str) -> None:
+    """
+    Expire a background task.
+    """
+    from celery.result import AsyncResult
+    result = AsyncResult(task_id, app=get_celery_app())
+    result.revoke(terminate=True)
+    update_task_status(task_id, 'expired')
+
