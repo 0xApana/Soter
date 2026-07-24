@@ -166,7 +166,7 @@ import { WebhooksModule } from 'src/webhooks.module';
 
           return {
             throttlers: getThrottlerConfig(),
-            storage: new ThrottlerStorageService(client),
+            storage: new ThrottlerStorageService(),
           };
         } catch (error) {
           console.warn(
