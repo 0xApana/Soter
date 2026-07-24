@@ -18,6 +18,18 @@ REQUESTS_SHED_TOTAL = Counter(
 )
 CELERY_QUEUE_DEPTH = Gauge('celery_queue_depth', 'Pending tasks in the Celery default queue')
 
+# Dead-letter queue metrics
+DEAD_LETTER_ITEMS_TOTAL = Counter(
+    'dead_letter_items_total',
+    'Items added to the dead-letter queue',
+    ['kind'],
+)
+DEAD_LETTER_REPLAY_ATTEMPTS_TOTAL = Counter(
+    'dead_letter_replay_attempts_total',
+    'Dead-letter replay attempts',
+    ['kind', 'outcome'],
+)
+
 # AI Model metrics
 MODEL_LOAD_TIME = Histogram('model_load_time_seconds', 'Model load time in seconds', ['model_name'])
 INFERENCE_LATENCY = Histogram('inference_latency_seconds', 'Inference latency in seconds', ['task_type'])
