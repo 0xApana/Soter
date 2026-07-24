@@ -64,7 +64,17 @@ export class AppController {
     description: 'Returns version info, release notes, and force-upgrade requirements for the given platform.',
   })
   getConfigVersion(@Query('platform') platform = 'web') {
+    const storeUrl = platform === 'ios'
+      ? { ios: 'https://apps.apple.com/app/soter', android: '' }
+      : platform === 'android'
+      ? { ios: '', android: 'https://play.google.com/store/apps/details?id=org.pulsefy.soter.mobile' }
+      : {
+          ios: 'https://apps.apple.com/app/soter',
+          android: 'https://play.google.com/store/apps/details?id=org.pulsefy.soter.mobile',
+        };
+
     return {
+      platform,
       currentVersion: '1.4.0',
       latestVersion: '1.5.0',
       minRequiredVersion: '1.4.0',
@@ -85,10 +95,7 @@ export class AppController {
         'Offline sync improvements',
         'Enhanced security measures',
       ],
-      storeUrl: {
-        ios: 'https://apps.apple.com/app/soter',
-        android: 'https://play.google.com/store/apps/details?id=org.pulsefy.soter.mobile',
-      },
+      storeUrl,
     };
   }
 }
