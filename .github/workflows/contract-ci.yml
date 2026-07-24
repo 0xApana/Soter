@@ -43,3 +43,9 @@ jobs:
 
       - name: Run tests
         run: cargo test --target x86_64-unknown-linux-gnu
+
+      - name: Generate contract registry
+        run: python3 scripts/generate-registry.py
+
+      - name: Validate contract registry
+        run: python3 scripts/test_generate_registry.py
