@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+
 import { JobsController } from './jobs.controller';
+import { JobStatusStreamingController } from './controllers/job-status-streaming.controller';
 import { RETENTION_PURGE_QUEUE } from '../retention-policy/retention-purge.processor';
 import { DlqService } from './dlq.service';
+import { JobStatusBroadcaster } from './services/job-status-broadcaster.service';
+import { JobStatusTracker } from './services/job-status-tracker.service';
+import { JobStatusGateway } from './gateways/job-status.gateway';
 
 @Module({
   imports: [
@@ -11,9 +17,10 @@ import { DlqService } from './dlq.service';
     BullModule.registerQueue({ name: 'onchain' }),
     BullModule.registerQueue({ name: RETENTION_PURGE_QUEUE }),
     BullModule.registerQueue({ name: 'dead-letter' }),
+    EventEmitterModule.forRoot(),
   ],
-  controllers: [JobsController],
-  providers: [DlqService],
-  exports: [DlqService],
+  controllers: [JobsController, JobStatusStreamingController],
+  providers: [DlqService, JobStatusBroadcaster, JobStatusTracker, JobStatusGateway],
+  exports: [DlqService, JobStatusBroadcaster, JobStatusTracker, JobStatusGateway],
 })
 export class JobsModule {}
