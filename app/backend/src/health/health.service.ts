@@ -7,9 +7,9 @@ import {
   ONCHAIN_ADAPTER_TOKEN,
 } from '../onchain/onchain.adapter';
 
-type CheckStatus = 'up' | 'down' | 'skipped';
+export type CheckStatus = 'up' | 'down' | 'skipped';
 
-interface HealthCheckResult {
+export interface HealthCheckResult {
   status: CheckStatus;
   details?: Record<string, unknown>;
 }
