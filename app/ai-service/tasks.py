@@ -268,6 +268,7 @@ def _process_ocr(payload: Dict[str, Any]) -> Dict[str, Any]:
         'result': run_ocr_from_base64(
             image_base64,
             payload.get('anchor_metadata'),
+            language_hint=payload.get('language_hint'),
         ),
     }
 
