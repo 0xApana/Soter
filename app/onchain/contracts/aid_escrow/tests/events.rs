@@ -78,6 +78,12 @@ fn assert_field_exists(env: &Env, data: &Val, field: &str) {
     );
 }
 
+fn data_string(env: &Env, data: &Val, field: &str) -> soroban_sdk::String {
+    let map = soroban_sdk::Map::<Symbol, Val>::try_from_val(env, data).unwrap();
+    let val = map.get(sym(env, field)).expect("missing field");
+    soroban_sdk::String::try_from_val(env, &val).expect("not string")
+}
+
 #[test]
 fn test_escrow_funded_event() {
     let env = Env::default();
@@ -162,6 +168,50 @@ fn test_package_claimed_event() {
     assert_eq!(data_u64(&env, &data, "package_id"), 0);
     assert_eq!(data_address(&env, &data, "recipient"), recipient);
     assert_eq!(data_i128(&env, &data, "amount"), UNIT);
+    // receipt_hash should be empty when not provided
+    assert!(data_string(&env, &data, "receipt_hash").is_empty());
+}
+
+#[test]
+fn test_package_claimed_event_with_receipt_hash() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let (token_client, token_admin_client) = setup_token(&env, &admin);
+
+    let contract_id = env.register(AidEscrow, ());
+    let client = AidEscrowClient::new(&env, &contract_id);
+    client.init(&admin);
+    token_admin_client.mint(&admin, &(10 * UNIT));
+    client.fund(&token_client.address, &admin, &(5 * UNIT));
+
+    let mut metadata = Map::new(&env);
+    metadata.set(
+        Symbol::new(&env, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "abc123def456"),
+    );
+
+    client.create_package(
+        &admin,
+        &0u64,
+        &recipient,
+        &UNIT,
+        &token_client.address,
+        &(env.ledger().timestamp() + 86400),
+        &metadata,
+    );
+    client.claim(&0u64);
+
+    let data = last_event_data(&env, &contract_id, "package_claimed");
+    assert_eq!(data_u64(&env, &data, "package_id"), 0);
+    assert_eq!(data_address(&env, &data, "recipient"), recipient);
+    assert_eq!(data_i128(&env, &data, "amount"), UNIT);
+    assert_eq!(
+        data_string(&env, &data, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "abc123def456")
+    );
 }
 
 #[test]
@@ -194,6 +244,50 @@ fn test_package_disbursed_event() {
     assert_eq!(data_u64(&env, &data, "package_id"), 0);
     assert_eq!(data_address(&env, &data, "recipient"), recipient);
     assert_eq!(data_i128(&env, &data, "amount"), UNIT);
+    // receipt_hash should be empty when not provided
+    assert!(data_string(&env, &data, "receipt_hash").is_empty());
+}
+
+#[test]
+fn test_package_disbursed_event_with_receipt_hash() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let (token_client, token_admin_client) = setup_token(&env, &admin);
+
+    let contract_id = env.register(AidEscrow, ());
+    let client = AidEscrowClient::new(&env, &contract_id);
+    client.init(&admin);
+    token_admin_client.mint(&admin, &(10 * UNIT));
+    client.fund(&token_client.address, &admin, &(5 * UNIT));
+
+    let mut metadata = Map::new(&env);
+    metadata.set(
+        Symbol::new(&env, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "disburse_hash_789"),
+    );
+
+    client.create_package(
+        &admin,
+        &0u64,
+        &recipient,
+        &UNIT,
+        &token_client.address,
+        &(env.ledger().timestamp() + 86400),
+        &metadata,
+    );
+    client.disburse(&0u64);
+
+    let data = last_event_data(&env, &contract_id, "package_disbursed");
+    assert_eq!(data_u64(&env, &data, "package_id"), 0);
+    assert_eq!(data_address(&env, &data, "recipient"), recipient);
+    assert_eq!(data_i128(&env, &data, "amount"), UNIT);
+    assert_eq!(
+        data_string(&env, &data, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "disburse_hash_789")
+    );
 }
 
 #[test]
