@@ -26,7 +26,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --target wasm32-unknown-unknown -- -D warnings
+          cargo clippy --target wasm32v1-none -- -D warnings
           cargo clippy --tests --target x86_64-unknown-linux-gnu -- -D warnings
 
       - name: Run tests
