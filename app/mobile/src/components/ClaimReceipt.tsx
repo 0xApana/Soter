@@ -16,13 +16,21 @@ import { config } from '../config';
 export interface ClaimReceiptData {
   claimId: string;
   packageId: string;
-  status: 'requested' | 'verified' | 'approved' | 'disbursed' | 'archived';
+  status:
+    | 'requested'
+    | 'verified'
+    | 'approved'
+    | 'disbursed'
+    | 'archived'
+    | 'cancelled';
   amount: number;
   tokenAddress?: string;
   transactionHash?: string;
   contractId?: string;
   timestamp: string;
   recipientRef?: string;
+  transactionHash?: string;
+  explorerLink?: string;
 }
 
 interface ClaimReceiptProps {
@@ -40,9 +48,22 @@ interface ClaimReceiptProps {
   compact?: boolean;
 }
 
+<<<<<<< Updated upstream
 const buildExplorerUrl = (type: 'address' | 'contract' | 'tx', identifier: string) => {
   const network = config.network;
   return `https://stellar.expert/explorer/${network}/${type}/${identifier}`;
+=======
+const statusColors: Record<
+  string,
+  { bg: string; text: string; icon: string }
+> = {
+  requested: { bg: '#fef3c7', text: '#92400e', icon: 'clock-outline' },
+  verified: { bg: '#dbeafe', text: '#1e40af', icon: 'check-circle-outline' },
+  approved: { bg: '#dcfce7', text: '#166534', icon: 'check-circle' },
+  disbursed: { bg: '#d1fae5', text: '#065f46', icon: 'check-all' },
+  archived: { bg: '#f3f4f6', text: '#374151', icon: 'archive' },
+  cancelled: { bg: '#fee2e2', text: '#991b1b', icon: 'close-circle' },
+>>>>>>> Stashed changes
 };
 
 function FieldCopyButton({ value, label }: { value: string; label: string }) {
@@ -89,24 +110,51 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({ claim, colors, compa
   }, [claim.timestamp]);
 
   const receiptText = useMemo(() => {
+<<<<<<< Updated upstream
     return [
+=======
+    const lines = [
+>>>>>>> Stashed changes
       'Claim Receipt',
       `Claim ID: ${claim.claimId}`,
       `Package ID: ${claim.packageId}`,
       `Status: ${claim.status.toUpperCase()}`,
       `Amount: ${claim.amount} tokens`,
       `Date: ${formattedDate}`,
+<<<<<<< Updated upstream
       claim.tokenAddress   ? `Token Address: ${claim.tokenAddress}`     : '',
       claim.transactionHash ? `Transaction Hash: ${claim.transactionHash}` : '',
       claim.contractId     ? `Contract ID: ${claim.contractId}`         : '',
     ].filter(Boolean).join('\n');
+=======
+    ];
+    if (claim.tokenAddress) {
+      lines.push(`Token Address: ${claim.tokenAddress}`);
+    }
+    if (claim.transactionHash) {
+      lines.push(`Transaction Hash: ${claim.transactionHash}`);
+    }
+    if (claim.explorerLink) {
+      lines.push(`Explorer Link: ${claim.explorerLink}`);
+    }
+    return lines.join('\n');
+>>>>>>> Stashed changes
   }, [claim, formattedDate]);
 
   const handleShare = async () => {
     setSharing(true);
     try {
+<<<<<<< Updated upstream
       await Share.share({ message: receiptText, title: 'Claim Receipt' });
     } catch {
+=======
+      await Share.share({
+        message: receiptText,
+        title: 'Claim Receipt',
+        url: claim.explorerLink ?? undefined,
+      });
+    } catch (error) {
+>>>>>>> Stashed changes
       Alert.alert('Error', 'Failed to share receipt');
     } finally {
       setSharing(false);
@@ -123,6 +171,7 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({ claim, colors, compa
     }
   };
 
+<<<<<<< Updated upstream
   const styles = useMemo(() => StyleSheet.create({
     container: {
       backgroundColor: colors.card,
@@ -172,6 +221,156 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({ claim, colors, compa
     actionButtonDisabled: { opacity: 0.5 },
     actionButtonText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   }), [colors, statusColor, compact]);
+=======
+  const handleOpenExplorer = () => {
+    if (!claim.explorerLink) return;
+    Linking.openURL(claim.explorerLink).catch(err => {
+      Alert.alert('Error', 'Unable to open explorer link');
+      console.error('Open explorer error:', err);
+    });
+  };
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          backgroundColor: colors.card,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: compact ? 12 : 20,
+        },
+        compactContainer: {
+          backgroundColor: statusColor.bg,
+          borderLeftWidth: 4,
+          borderLeftColor: statusColor.text,
+        },
+        header: {
+          marginBottom: 16,
+          paddingBottom: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        headerTitle: {
+          fontSize: 20,
+          fontWeight: 'bold',
+          color: colors.text,
+          marginBottom: 4,
+        },
+        headerSubtitle: {
+          fontSize: 12,
+          color: colors.text,
+          opacity: 0.6,
+        },
+        detailsGrid: {
+          marginBottom: 16,
+        },
+        detailRow: {
+          marginBottom: 12,
+        },
+        detailLabel: {
+          fontSize: 11,
+          fontWeight: '600',
+          color: colors.text,
+          opacity: 0.6,
+          marginBottom: 4,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+        },
+        detailValue: {
+          fontSize: 14,
+          color: colors.text,
+          fontFamily: 'monospace',
+        },
+        explorerLinkText: {
+          color: colors.primary,
+          textDecorationLine: 'underline',
+          fontSize: 14,
+        },
+        statusBadge: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          backgroundColor: statusColor.bg,
+          borderRadius: 8,
+          paddingVertical: 4,
+          paddingHorizontal: 8,
+          alignSelf: 'flex-start',
+        },
+        statusBadgeText: {
+          fontSize: 12,
+          fontWeight: '600',
+          color: statusColor.text,
+          textTransform: 'capitalize',
+        },
+        amount: {
+          fontSize: 16,
+          fontWeight: '600',
+          color: statusColor.text,
+        },
+        compactRow: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        },
+        compactContent: {
+          flex: 1,
+        },
+        compactPackageId: {
+          fontSize: 14,
+          fontWeight: '600',
+          color: statusColor.text,
+          marginBottom: 2,
+        },
+        compactTimestamp: {
+          fontSize: 11,
+          color: statusColor.text,
+          opacity: 0.7,
+        },
+        actionsContainer: {
+          flexDirection: 'row',
+          gap: 8,
+        },
+        actionButton: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          backgroundColor: colors.primary,
+          borderRadius: 8,
+          paddingVertical: 10,
+          opacity: 0.9,
+        },
+        actionButtonDisabled: {
+          opacity: 0.5,
+        },
+        actionButtonText: {
+          fontSize: 12,
+          fontWeight: '600',
+          color: '#fff',
+        },
+        explorerButton: {
+          marginTop: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: colors.primary,
+          borderRadius: 8,
+          paddingVertical: 10,
+        },
+        explorerButtonText: {
+          fontSize: 12,
+          fontWeight: '600',
+          color: colors.primary,
+        },
+      }),
+    [colors, statusColor],
+  );
+>>>>>>> Stashed changes
 
   if (compact) {
     return (
@@ -261,6 +460,30 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({ claim, colors, compa
             </View>
           </View>
         )}
+
+        {claim.transactionHash && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Transaction Hash</Text>
+            <Text
+              style={styles.detailValue}
+              numberOfLines={2}
+              ellipsizeMode="middle"
+            >
+              {claim.transactionHash}
+            </Text>
+          </View>
+        )}
+
+        {claim.explorerLink && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>View on Explorer</Text>
+            <TouchableOpacity onPress={handleOpenExplorer} activeOpacity={0.7}>
+              <Text style={styles.explorerLinkText}>
+                Open blockchain explorer →
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={styles.actionsContainer}>
@@ -281,6 +504,21 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({ claim, colors, compa
           <Text style={styles.actionButtonText}>{copied ? 'Copied' : 'Copy'}</Text>
         </TouchableOpacity>
       </View>
+
+      {claim.explorerLink && (
+        <TouchableOpacity
+          style={styles.explorerButton}
+          onPress={handleOpenExplorer}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons
+            name="open-in-new"
+            size={16}
+            color={colors.primary}
+          />
+          <Text style={styles.explorerButtonText}>View Transaction</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

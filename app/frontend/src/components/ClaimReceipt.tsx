@@ -9,13 +9,21 @@ import { buildExplorerUrl } from '../lib/explorer';
 export interface ClaimReceiptData {
   claimId: string;
   packageId: string;
-  status: 'requested' | 'verified' | 'approved' | 'disbursed' | 'archived';
+  status:
+    | 'requested'
+    | 'verified'
+    | 'approved'
+    | 'disbursed'
+    | 'archived'
+    | 'cancelled';
   amount: number;
   tokenAddress?: string;
   transactionHash?: string;
   contractAddress?: string;
   timestamp: string;
   recipientRef?: string;
+  transactionHash?: string;
+  explorerLink?: string;
 }
 
 interface ClaimReceiptProps {
@@ -63,6 +71,7 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({
     approved: 'bg-green-50 border-green-200 text-green-900',
     disbursed: 'bg-emerald-50 border-emerald-200 text-emerald-900',
     archived: 'bg-gray-50 border-gray-200 text-gray-900',
+    cancelled: 'bg-red-50 border-red-200 text-red-900',
   };
 
   const statusBadgeColors = {
@@ -71,6 +80,7 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({
     approved: 'bg-green-100 text-green-800',
     disbursed: 'bg-emerald-100 text-emerald-800',
     archived: 'bg-gray-100 text-gray-800',
+    cancelled: 'bg-red-100 text-red-800',
   };
 
   const formattedDate = useMemo(() => {
@@ -82,6 +92,7 @@ export const ClaimReceipt: React.FC<ClaimReceiptProps> = ({
   }, [claim.timestamp]);
 
   const receiptText = useMemo(() => {
+<<<<<<< Updated upstream
     return `Claim Receipt
 Claim ID: ${claim.claimId}
 Package ID: ${claim.packageId}
@@ -91,6 +102,26 @@ Date: ${formattedDate}
 ${claim.tokenAddress ? `Token Address: ${claim.tokenAddress}` : ''}
 ${claim.contractAddress ? `Contract Address: ${claim.contractAddress}` : ''}
 ${claim.transactionHash ? `Transaction Hash: ${claim.transactionHash}` : ''}`.trim();
+=======
+    const lines = [
+      'Claim Receipt',
+      `Claim ID: ${claim.claimId}`,
+      `Package ID: ${claim.packageId}`,
+      `Status: ${claim.status.toUpperCase()}`,
+      `Amount: ${claim.amount} tokens`,
+      `Date: ${formattedDate}`,
+    ];
+    if (claim.tokenAddress) {
+      lines.push(`Token Address: ${claim.tokenAddress}`);
+    }
+    if (claim.transactionHash) {
+      lines.push(`Transaction Hash: ${claim.transactionHash}`);
+    }
+    if (claim.explorerLink) {
+      lines.push(`Explorer Link: ${claim.explorerLink}`);
+    }
+    return lines.join('\n');
+>>>>>>> Stashed changes
   }, [claim, formattedDate]);
 
   const handleCopy = async () => {
@@ -237,6 +268,26 @@ ${claim.transactionHash ? `Transaction Hash: ${claim.transactionHash}` : ''}`.tr
               </a>
               <FieldCopyButton value={claim.transactionHash} label="transaction hash" />
             </div>
+          </div>
+        )}
+        {claim.transactionHash && (
+          <div className="col-span-2">
+            <p className="text-xs font-semibold opacity-75 mb-1">TRANSACTION HASH</p>
+            <p className="font-mono text-xs break-all">{claim.transactionHash}</p>
+          </div>
+        )}
+        {claim.explorerLink && (
+          <div className="col-span-2">
+            <p className="text-xs font-semibold opacity-75 mb-1">VIEW ON EXPLORER</p>
+            <a
+              href={claim.explorerLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm underline hover:opacity-80 transition-opacity"
+            >
+              Open transaction in blockchain explorer
+              <ExternalLink size={14} />
+            </a>
           </div>
         )}
       </div>
