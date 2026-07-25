@@ -99,6 +99,248 @@ describe('Mock API Client', () => {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   });
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Verification Inbox Mock Handler Tests
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('Verification Inbox', () => {
+    const INBOX_BASE = 'http://localhost:4000/v1/verification-inbox';
+
+    it('returns populated inbox with items and pagination', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.items).toBeDefined();
+      expect(Array.isArray(data.items)).toBe(true);
+      expect(data.items.length).toBeGreaterThan(0);
+      expect(data.total).toBeGreaterThan(0);
+      expect(data.page).toBe(1);
+      expect(data.totalPages).toBeGreaterThanOrEqual(1);
+      // Check item shape
+      const item = data.items[0];
+      expect(item.id).toBeDefined();
+      expect(item.status).toBeDefined();
+      expect(item.createdAt).toBeDefined();
+      expect(item.deepLink).toBeDefined();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('filters inbox by status', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}?status=pending_review`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      for (const item of data.items) {
+        expect(item.status).toBe('pending_review');
+      }
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('filters inbox by riskLevel', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}?riskLevel=high`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      for (const item of data.items) {
+        expect(item.riskLevel).toBe('high');
+      }
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns empty items when filter matches nothing', async () => {
+      const fetchPromise = fetchClient(
+        `${INBOX_BASE}?status=approved&riskLevel=high`,
+      );
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.items).toHaveLength(0);
+      expect(data.total).toBe(0);
+      expect(data.totalPages).toBe(1); // ceil(0/20) = 0 but we use || 1
+    });
+
+    it('returns inbox stats with counts by status', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/stats`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.pending_review).toBeGreaterThanOrEqual(0);
+      expect(data.approved).toBeGreaterThanOrEqual(0);
+      expect(data.rejected).toBeGreaterThanOrEqual(0);
+      expect(data.needs_resubmission).toBeGreaterThanOrEqual(0);
+      expect(data.total).toBeGreaterThan(0);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns detail for a specific verification item', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-001`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.id).toBe('vfy-001');
+      expect(data.status).toBeDefined();
+      expect(data.createdAt).toBeDefined();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 for non-existent verification item', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/nonexistent`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+
+      expect(res.status).toBe(404);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('approves a pending verification request', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-001/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nextStepMessage: 'Approved — ready for disbursement',
+          internalNote: 'All checks passed',
+        }),
+      });
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.id).toBe('vfy-001');
+      expect(data.status).toBe('approved');
+      expect(data.reviewedAt).toBeDefined();
+      expect(data.reviewedBy).toBe('reviewer-demo');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects a pending verification request', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-006/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rejectionReason: 'Biometric mismatch',
+          nextStepMessage: 'Please retake biometric verification',
+        }),
+      });
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.id).toBe('vfy-006');
+      expect(data.status).toBe('rejected');
+      expect(data.rejectionReason).toBe('Biometric mismatch');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('requests resubmission for a pending verification', async () => {
+      const fetchPromise = fetchClient(
+        `${INBOX_BASE}/vfy-008/request-resubmission`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rejectionReason: 'Document expired',
+            nextStepMessage: 'Submit a valid ID',
+          }),
+        },
+      );
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.id).toBe('vfy-008');
+      expect(data.status).toBe('needs_resubmission');
+      expect(data.rejectionReason).toBe('Document expired');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when approving an already processed item', async () => {
+      // vfy-003 is already 'approved'
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-003/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+
+      expect(res.status).toBe(400);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns notes for a verification item', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-002/notes`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(data)).toBe(true);
+      // vfy-002 has 2 mock notes
+      expect(data.length).toBeGreaterThanOrEqual(1);
+      for (const note of data) {
+        expect(note.id).toBeDefined();
+        expect(note.content).toBeDefined();
+        expect(note.authorId).toBeDefined();
+      }
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('adds a new note to a verification item', async () => {
+      const fetchPromise = fetchClient(`${INBOX_BASE}/vfy-001/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'Contacted recipient for additional documents',
+          category: 'follow_up',
+        }),
+      });
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(201);
+      expect(data.id).toBeDefined();
+      expect(data.content).toBe('Contacted recipient for additional documents');
+      expect(data.category).toBe('follow_up');
+      expect(data.entityType).toBe('verification');
+      expect(data.entityId).toBe('vfy-001');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('paginates inbox results', async () => {
+      // Use small limit to force pagination
+      const fetchPromise = fetchClient(`${INBOX_BASE}?page=1&limit=3`);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.items.length).toBeLessThanOrEqual(3);
+      expect(data.page).toBe(1);
+      expect(data.limit).toBe(3);
+      if (data.total > 3) {
+        expect(data.totalPages).toBeGreaterThan(1);
+      }
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+  });
+
   it('should create and retrieve campaign with mock API', async () => {
     const createPromise = fetchClient('http://localhost:4000/campaigns', {
       method: 'POST',
