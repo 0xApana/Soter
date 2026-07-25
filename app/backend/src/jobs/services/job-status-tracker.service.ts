@@ -18,19 +18,6 @@ import {
 } from '../dtos/job-status-event.dto';
 
 /**
- * Internal event types for job status tracking
- */
-enum InternalJobEvent {
-  CREATED = 'job.created',
-  STARTED = 'job.started',
-  PROGRESS = 'job.progress',
-  COMPLETED = 'job.completed',
-  FAILED = 'job.failed',
-  RETRYING = 'job.retrying',
-  CANCELLED = 'job.cancelled',
-}
-
-/**
  * Payload for internal job events
  */
 export interface JobStatusPayload {

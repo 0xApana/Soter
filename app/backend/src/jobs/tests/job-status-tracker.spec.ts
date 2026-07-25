@@ -5,7 +5,6 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { v4 as uuidv4 } from 'uuid';
 
 import { JobStatusTracker } from './services/job-status-tracker.service';
 import { JobStatusBroadcaster } from './services/job-status-broadcaster.service';

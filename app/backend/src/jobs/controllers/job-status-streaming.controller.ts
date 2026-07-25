@@ -3,16 +3,11 @@
  * Provides REST endpoints for querying job status and subscription history
  */
 
-import { Controller, Get, Param, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiNotFoundResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 
 import { JobStatusBroadcaster } from '../services/job-status-broadcaster.service';
-import {
-  JobStatusEvent,
-  JobStatusWithResultDto,
-  SubscriptionAckDto,
-} from '../dtos/job-status-event.dto';
-import { JwtGuard } from '../../common/guards/jwt.guard';
+import { JobStatusEvent, JobStatusWithResultDto } from '../dtos/job-status-event.dto';
 
 @ApiTags('Jobs - Status Streaming')
 @Controller('jobs')

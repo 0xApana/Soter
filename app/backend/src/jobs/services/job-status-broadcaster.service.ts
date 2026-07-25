@@ -8,7 +8,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRedis } from '@liaoliaots/nestjs-redis';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import { JobStatusEvent, JobType, JobStatus, TERMINAL_JOB_STATES } from './dtos/job-status-event.dto';
+import { JobStatusEvent } from './dtos/job-status-event.dto';
 
 @Injectable()
 export class JobStatusBroadcaster {

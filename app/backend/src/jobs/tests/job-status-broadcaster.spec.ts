@@ -166,7 +166,7 @@ describe('JobStatusBroadcaster', () => {
 
       mockRedis.lrange.mockResolvedValue(events.map(e => JSON.stringify(e)));
 
-      const history = await service.getJobHistory('job_123', 50);
+      await service.getJobHistory('job_123', 50);
 
       expect(mockRedis.lrange).toHaveBeenCalledWith(
         'job_status_history:job_123',

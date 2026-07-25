@@ -15,7 +15,7 @@ import {
   ConnectedSocket,
   WsException,
 } from '@nestjs/websockets';
-import { UseGuards, Logger, Injectable } from '@nestjs/common';
+import { Logger, Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { InjectRedis } from '@liaoliaots/nestjs-redis';
@@ -25,12 +25,8 @@ import {
   JobStatusEvent,
   JobStatusSubscriptionOptions,
   SubscriptionAckDto,
-  JobType,
-  JobStatus,
-  TERMINAL_JOB_STATES,
 } from '../dtos/job-status-event.dto';
 import { JobStatusBroadcaster } from './job-status-broadcaster.service';
-import { JwtGuard } from '../../common/guards/jwt.guard';
 
 /**
  * Metadata about an active subscription
@@ -85,7 +81,7 @@ export class JobStatusGateway implements OnGatewayInit, OnGatewayConnection, OnG
     this.logger.log('JobStatusGateway initialized with Socket.io');
 
     // Set up global middleware for authentication
-    server.use(async (socket, next) => {
+    server.use((socket, next) => {
       try {
         const token = socket.handshake.auth.token;
         if (!token) {
@@ -104,7 +100,7 @@ export class JobStatusGateway implements OnGatewayInit, OnGatewayConnection, OnG
   /**
    * Handle client connection
    */
-  async handleConnection(socket: AuthenticatedSocket): Promise<void> {
+  handleConnection(socket: AuthenticatedSocket): void {
     const socketId = socket.id;
     const userId = socket.user?.id || socket.handshake.headers['x-user-id'] as string;
 
