@@ -463,16 +463,96 @@ export class ClaimsService {
   }
 
   /**
-   * Generate a receipt DTO for a claim
+   * Build a blockchain explorer link for a transaction hash.
    */
-  async getReceipt(id: string): Promise<ClaimReceiptDto> {
-    const claim = await this.findOne(id);
+  private buildExplorerLink(transactionHash: string): string | null {
+    const network =
+      this.configService.get<string>('STELLAR_NETWORK')?.toLowerCase() ??
+      'testnet';
+    const explorerBase =
+      this.configService.get<string>('STELLAR_EXPLORER_URL') ??
+      'https://stellar.expert/explorer';
+    if (network === 'mainnet' || network === 'pubnet') {
+      return `${explorerBase}/public/tx/${transactionHash}`;
+    }
+    return `${explorerBase}/testnet/tx/${transactionHash}`;
+  }
+
+  /**
+   * Resolve a claim from either a claim ID or a package (campaign) identifier.
+   * When given a package ID, returns the most recent claim for that package.
+   */
+  private async resolveClaimByIdentifier(identifier: string): Promise<any> {
+    // 1. Try direct claim ID lookup
+    try {
+      const directClaim = await this.findOne(identifier);
+      if (directClaim) return directClaim;
+    } catch {
+      // not found via claim ID - fall through
+    }
+
+    // 2. Try as package / campaign identifier, most recent claim first
+    const claimsForPackage = await this.prisma.claim.findMany({
+      where: {
+        deletedAt: null,
+        campaignId: identifier,
+      },
+      include: { campaign: true },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    if (claimsForPackage.length > 0) {
+      const match = claimsForPackage[0];
+      return {
+        ...match,
+        recipientRef: this.encryptionService.decrypt(match.recipientRef),
+      };
+    }
+
+    throw new NotFoundException('Claim not found');
+  }
+
+  /**
+   * Look up the on-chain disbursement transaction hash for a claim via audit logs.
+   */
+  private async findDisbursementTransaction(
+    claimId: string,
+  ): Promise<{ transactionHash: string; status: string } | null> {
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        entity: 'onchain',
+        entityId: claimId,
+        action: 'disburse',
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 1,
+    });
+    if (logs.length === 0) return null;
+    const metadata = logs[0].metadata as Record<string, any> | null;
+    if (!metadata?.transactionHash) return null;
+    return {
+      transactionHash: metadata.transactionHash,
+      status: metadata.status ?? 'success',
+    };
+  }
+
+  /**
+   * Generate a receipt DTO for a claim, resolvable by claim ID or package ID.
+   */
+  async getReceipt(identifier: string): Promise<ClaimReceiptDto> {
+    const claim = await this.resolveClaimByIdentifier(identifier);
 
     if (!claim) {
       throw new NotFoundException('Claim not found');
     }
 
     const tokenAddress = this.getTokenAddressForClaim(claim);
+
+    const txInfo = await this.findDisbursementTransaction(claim.id);
+    const transactionHash = txInfo?.transactionHash;
+    const explorerLink = transactionHash
+      ? this.buildExplorerLink(transactionHash) ?? undefined
+      : undefined;
 
     return {
       claimId: claim.id,
@@ -482,6 +562,8 @@ export class ClaimsService {
       timestamp: claim.createdAt.toISOString(),
       tokenAddress,
       recipientRef: claim.recipientRef,
+      transactionHash,
+      explorerLink,
     };
   }
 
@@ -556,6 +638,14 @@ export class ClaimsService {
 
     if (receipt.recipientRef) {
       lines.push(`Recipient:       ${receipt.recipientRef}`);
+    }
+
+    if (receipt.transactionHash) {
+      lines.push(`Transaction:     ${receipt.transactionHash}`);
+    }
+
+    if (receipt.explorerLink) {
+      lines.push(`Explorer:        ${receipt.explorerLink}`);
     }
 
     lines.push('');
