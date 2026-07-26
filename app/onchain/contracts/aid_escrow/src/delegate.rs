@@ -22,16 +22,6 @@ const KEY_DELEGATE_EXPIRY: Symbol = symbol_short!("dlgexp");
 
 #[contracttype]
 #[derive(Clone, Debug)]
-pub struct DelegateRecord {
-    pub package_id: u64,
-    pub delegate: Address,
-    pub set_by: Address,
-    pub set_at: u64,
-    pub expires_at: u64,
-}
-
-#[contracttype]
-#[derive(Clone, Debug)]
 pub struct DelegateHistory {
     pub package_id: u64,
     pub previous_delegate: Option<Address>,
