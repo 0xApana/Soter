@@ -43,6 +43,7 @@ from schemas.humanitarian import (
     HumanitarianVerificationResponse,
 )
 from services.humanitarian_verification import HumanitarianVerificationService
+from services.evidence_access_control import EvidenceAccessControl
 
 # Context variable for correlation ID
 correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="")
@@ -144,6 +145,18 @@ proof_of_life_analyzer = ProofOfLifeAnalyzer(
 )
 pii_scrubber_service = PIIScrubberService()
 humanitarian_verification_service = HumanitarianVerificationService()
+
+# Initialize evidence access control service
+from services.artifact_access import ArtifactAccessService
+from services.evidence_access_control import EvidenceAccessControl
+
+# Create artifact access service and wrap with evidence access control
+artifact_access_service_instance = ArtifactAccessService(
+    artifacts_dir=settings.verification_artifacts_dir,
+    signing_secret=settings.artifact_signing_secret,
+    ttl_seconds=settings.verification_artifact_url_ttl_seconds,
+)
+evidence_access_control = EvidenceAccessControl(artifact_access_service_instance)
 
 
 class InferenceRequest(BaseModel):

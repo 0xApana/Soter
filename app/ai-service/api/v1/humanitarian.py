@@ -3,9 +3,10 @@ v1 humanitarian verification endpoint.
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Header
 
 from config import settings
 from schemas.common import ResultEnvelope
@@ -13,6 +14,8 @@ from schemas.humanitarian import (
     HumanitarianVerificationRequest,
 )
 from services.cache import cached_response
+from services.artifact_access import ArtifactAccessError
+from services.evidence_access_control import EvidenceAccessControl, EvidenceAccessControlError
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +69,101 @@ async def _verify_claim_cached(
 @router.post("/ai/humanitarian/verify", response_model=ResultEnvelope[Dict[str, Any]])
 async def verify_humanitarian_claim(
     request: HumanitarianVerificationRequest,
+    x_org_id: str = Header(default="", alias="X-Org-Id"),
+    x_user_id: str = Header(default="", alias="X-User-Id"),
+    x_user_role: str = Header(default="", alias="X-User-Role"),
 ) -> ResultEnvelope[Dict[str, Any]]:
-    """Verify an aid claim against standardised humanitarian criteria."""
+    """Verify an aid claim against standardised humanitarian criteria.
+    
+    Validates that all referenced evidence artifacts belong to the requesting
+    organization before processing. Maintains audit logs for access attempts.
+    """
     import main as _main
-    from main import correlation_id_var
+    import api.v1.artifacts as artifacts_module
+    from main import correlation_id_var, evidence_access_control
 
-    logger.info("Processing humanitarian verification request")
+    logger.info("Processing humanitarian verification request with evidence ownership validation")
 
     try:
+        # Validate required headers for authorization
+        if not x_user_role or not x_user_role.strip():
+            logger.warning(
+                "missing_user_role",
+                extra={
+                    "event": "artifact_access_denied",
+                    "code": "missing_user_role",
+                    "organization": x_org_id,
+                    "user_id": x_user_id,
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            raise HTTPException(status_code=400, detail="X-User-Role header is required")
+
+        if not x_org_id or not x_org_id.strip():
+            logger.warning(
+                "missing_org_id",
+                extra={
+                    "event": "artifact_access_denied",
+                    "code": "missing_org_id",
+                    "user_role": x_user_role,
+                    "user_id": x_user_id,
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            raise HTTPException(status_code=400, detail="X-Org-Id header is required")
+
+        if not x_user_id or not x_user_id.strip():
+            logger.warning(
+                "missing_user_id",
+                extra={
+                    "event": "artifact_access_denied",
+                    "code": "missing_user_id",
+                    "user_role": x_user_role,
+                    "organization": x_org_id,
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            raise HTTPException(status_code=400, detail="X-User-Id header is required")
+
+        # Validate user role
+        if not artifacts_module.artifact_access_service.validate_role(x_user_role):
+            logger.warning(
+                "forbidden_role",
+                extra={
+                    "event": "artifact_access_denied",
+                    "code": "forbidden_role",
+                    "user_role": x_user_role,
+                    "user_id": x_user_id,
+                    "organization": x_org_id,
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            raise HTTPException(status_code=403, detail=f"User role '{x_user_role}' is not authorized")
+
+                # Enforce evidence ownership validation if artifacts are referenced
+        if request.artifact_ids and evidence_access_control:
+            try:
+                evidence_access_control.validate_evidence_access(
+                    artifact_ids=request.artifact_ids,
+                    org_id=x_org_id,
+                    user_id=x_user_id,
+                    user_role=x_user_role,
+                    correlation_id=correlation_id_var.get(),
+                )
+            except EvidenceAccessControlError as exc:
+                logger.warning(
+                    "forbidden_org",
+                    extra={
+                        "event": "artifact_access_denied",
+                        "code": "forbidden_org",
+                        "artifact_ids": request.artifact_ids,
+                        "org_id": x_org_id,
+                        "user_id": x_user_id,
+                        "correlation_id": correlation_id_var.get(),
+                    },
+                )
+                raise HTTPException(status_code=403, detail=str(exc))
+
         model_version = _main.humanitarian_verification_service.get_model_version(
             request.provider_preference
         )
