@@ -382,4 +382,71 @@ describe('Mock API Client', () => {
     expect(patchJson.success).toBe(true);
     expect(patchJson.data.status).toBe('paused');
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Dashboard Summary (global-stats) Mock Handler Tests
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('Dashboard Summary Cards (/analytics/global-stats)', () => {
+    const STATS_URL = 'http://localhost:4000/analytics/global-stats';
+
+    it('returns live totals derived from mock data (not zeros)', async () => {
+      const fetchPromise = fetchClient(STATS_URL);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      // The mock data contains 8 inbox items and 8 packages, so totals
+      // should be greater than zero.
+      expect(data.totalClaims).toBeGreaterThan(0);
+      expect(data.totalPackages).toBeGreaterThan(0);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns all four required summary fields', async () => {
+      const fetchPromise = fetchClient(STATS_URL);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      expect(data).toHaveProperty('totalClaims');
+      expect(data).toHaveProperty('totalPackages');
+      expect(data).toHaveProperty('pendingReviews');
+      expect(data).toHaveProperty('totalDisbursements');
+    });
+
+    it('returns finite non-negative numbers for every metric', async () => {
+      const fetchPromise = fetchClient(STATS_URL);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      for (const key of ['totalClaims', 'totalPackages', 'pendingReviews', 'totalDisbursements'] as const) {
+        expect(typeof data[key]).toBe('number');
+        expect(Number.isFinite(data[key])).toBe(true);
+        expect(data[key]).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it('reflects pending_review items in pendingReviews count', async () => {
+      const fetchPromise = fetchClient(STATS_URL);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      // From the mock inbox items we know there are 4 pending_review entries
+      expect(data.pendingReviews).toBeGreaterThan(0);
+    });
+
+    it('reflects Claimed packages in totalDisbursements', async () => {
+      const fetchPromise = fetchClient(STATS_URL);
+      jest.advanceTimersByTime(500);
+      const res = await fetchPromise;
+      const data = await res.json();
+
+      // From the mock ALL_PACKAGES we know there are 2 Claimed packages
+      expect(data.totalDisbursements).toBeGreaterThan(0);
+    });
+  });
 });
