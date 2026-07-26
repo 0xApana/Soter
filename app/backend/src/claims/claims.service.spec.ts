@@ -186,12 +186,12 @@ describe('ClaimsService', () => {
       jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
-          await Promise.resolve();
           return callback({
             claim: {
               update: jest.fn().mockResolvedValue({
                 ...mockClaim,
                 status: ClaimStatus.disbursed,
+                campaign: mockClaim.campaign,
               }),
             },
           });
@@ -212,12 +212,12 @@ describe('ClaimsService', () => {
       jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
-          await Promise.resolve();
           return callback({
             claim: {
               update: jest.fn().mockResolvedValue({
                 ...mockClaim,
                 status: ClaimStatus.disbursed,
+                campaign: mockClaim.campaign,
               }),
             },
           });
@@ -235,12 +235,12 @@ describe('ClaimsService', () => {
       const transactionMock = jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
-          await Promise.resolve();
           return callback({
             claim: {
               update: jest.fn().mockResolvedValue({
                 ...mockClaim,
                 status: ClaimStatus.disbursed,
+                campaign: mockClaim.campaign,
               }),
             },
           });
@@ -282,12 +282,12 @@ describe('ClaimsService', () => {
                 .fn()
                 .mockImplementation(
                   async (callback: (tx: any) => Promise<unknown>) => {
-                    await Promise.resolve();
                     return callback({
                       claim: {
                         update: jest.fn().mockResolvedValue({
                           ...mockClaim,
                           status: ClaimStatus.disbursed,
+                          campaign: mockClaim.campaign,
                         }),
                       },
                     });
@@ -371,12 +371,12 @@ describe('ClaimsService', () => {
       const transactionSpy = jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
-          await Promise.resolve();
           return callback({
             claim: {
               update: jest.fn().mockResolvedValue({
                 ...mockClaim,
                 status: ClaimStatus.disbursed,
+                campaign: mockClaim.campaign,
               }),
             },
           });
