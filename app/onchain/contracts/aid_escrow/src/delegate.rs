@@ -388,7 +388,8 @@ pub fn cleanup_expired_delegates(env: &Env, caller: &Address) -> Result<u32, Err
 mod tests {
     use super::*;
     use crate::{Package, PackageStatus};
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::testutils::{Address as _, Ledger as _};
+    use soroban_sdk::Env;
 
     fn create_test_package(env: &Env, package_id: u64, recipient: &Address, status: PackageStatus) {
         let package = Package {
