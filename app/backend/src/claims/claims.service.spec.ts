@@ -12,7 +12,7 @@ import { LoggerService } from '../logger/logger.service';
 import { MetricsService } from '../observability/metrics/metrics.service';
 import { AuditService } from '../audit/audit.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
-import { ClaimStatus, Prisma } from '@prisma/client';
+import { ClaimStatus, Prisma, SorobanOperationType } from '@prisma/client';
 import { SorobanTransactionLifecycleService } from '../onchain/soroban-transaction-lifecycle.service';
 import { SorobanTransactionScheduler } from '../onchain/soroban-transaction.scheduler';
 
@@ -76,6 +76,11 @@ describe('ClaimsService', () => {
     incrementOnchainOperation: jest.fn(),
     recordOnchainDuration: jest.fn(),
     incrementCounter: jest.fn(),
+    incrementClaimsDisbursed: jest.fn(),
+    incrementClaimsVerified: jest.fn(),
+    incrementClaimsApproved: jest.fn(),
+    recordClaimFunnelDuration: jest.fn(),
+    adjustClaimsInFunnel: jest.fn(),
   };
 
   const mockSorobanTxLifecycleService = {
@@ -180,29 +185,41 @@ describe('ClaimsService', () => {
 
   describe('disburse', () => {
     it('should create and schedule a Soroban transaction when onchain is enabled', async () => {
+      const expectedClaim = {
+        ...mockClaim,
+        status: ClaimStatus.disbursed,
+      };
+
       jest
         .spyOn(prismaService.claim, 'findUnique')
         .mockResolvedValue(mockClaim);
+
       jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
           return callback({
             claim: {
-              update: jest.fn().mockResolvedValue({
-                ...mockClaim,
-                status: ClaimStatus.disbursed,
-                campaign: mockClaim.campaign,
-              }),
+              update: jest.fn().mockResolvedValue(expectedClaim),
             },
           });
         });
 
-      await service.disburse('claim-123');
+      const result = await service.disburse('claim-123');
 
       expect(
         mockSorobanTxLifecycleService.createTransaction,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          claimId: 'claim-123',
+          operation: SorobanOperationType.disburse_claim,
+        }),
+      );
+      expect(
+        mockSorobanTxScheduler.scheduleTransaction,
       ).toHaveBeenCalled();
-      expect(mockSorobanTxScheduler.scheduleTransaction).toHaveBeenCalled();
+
+      expect(result.status).toBe(ClaimStatus.disbursed);
+      expect(result.campaign).toBeDefined();
     });
 
     it('should record metrics when Soroban transaction is scheduled', async () => {
