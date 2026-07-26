@@ -11,6 +11,6 @@ import { SorobanEventCorrelationService } from './soroban-event-correlation.serv
   imports: [OnchainModule, CommonServicesModule, ConfigModule],
   providers: [AidEscrowService, BudgetService],
   controllers: [AidEscrowController],
-  exports: [AidEscrowService, SorobanEventCorrelationService],
+  exports: [AidEscrowService, OnchainModule],
 })
 export class AidEscrowModule {}
