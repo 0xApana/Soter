@@ -9,7 +9,6 @@ import { CLAIM_EVENT } from './claim.events';
 
 describe('CancelAndReissueService', () => {
   let service: CancelAndReissueService;
-  let prismaService: PrismaService;
   let auditService: AuditService;
 
   const mockClaim: any = {
@@ -59,7 +58,6 @@ describe('CancelAndReissueService', () => {
     }).compile();
 
     service = module.get<CancelAndReissueService>(CancelAndReissueService);
-    prismaService = module.get<PrismaService>(PrismaService);
     auditService = module.get<AuditService>(AuditService);
     jest.clearAllMocks();
   });
@@ -67,7 +65,7 @@ describe('CancelAndReissueService', () => {
   describe('cancel', () => {
     it('should emit ClaimCancelledEvent with all required payload fields', async () => {
       mockPrismaService.claim.findUnique.mockResolvedValue(mockClaim);
-      mockPrismaService.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrismaService.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => {
         const tx = {
           claim: {
             update: jest.fn().mockResolvedValue({
@@ -110,7 +108,7 @@ describe('CancelAndReissueService', () => {
 
     it('should emit ClaimCancelledEvent without optional reason field', async () => {
       mockPrismaService.claim.findUnique.mockResolvedValue(mockClaim);
-      mockPrismaService.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrismaService.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => {
         const tx = {
           claim: {
             update: jest.fn().mockResolvedValue({
@@ -140,7 +138,7 @@ describe('CancelAndReissueService', () => {
   describe('reissue', () => {
     it('should emit ClaimCancelledEvent and ClaimReissuedEvent with all required payload fields', async () => {
       mockPrismaService.claim.findUnique.mockResolvedValue(mockClaim);
-      mockPrismaService.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrismaService.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => {
         const tx = {
           claim: {
             update: jest.fn().mockResolvedValue({
@@ -198,7 +196,7 @@ describe('CancelAndReissueService', () => {
 
     it('should emit ClaimReissuedEvent with overridden amount', async () => {
       mockPrismaService.claim.findUnique.mockResolvedValue(mockClaim);
-      mockPrismaService.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrismaService.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => {
         const tx = {
           claim: {
             update: jest.fn().mockResolvedValue({
