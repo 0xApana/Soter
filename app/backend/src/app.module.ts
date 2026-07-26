@@ -43,6 +43,7 @@ import { InvitesModule } from './orgs/invites.module';
 import { AdminSearchModule } from './search/admin-search.module';
 import { EntityLinkingModule } from './entity-linking/entity-linking.module';
 import { DeploymentMetadataModule } from './deployment-metadata/deployment-metadata.module';
+import { DriftReportModule } from './drift-report/drift-report.module';
 import { RedisModule } from '@liaoliaots/nestjs-redis';
 import { AdaptiveRateLimitGuard } from './common/guards/adaptive-rate-limit.guard';
 import { DeprecationInterceptor } from './common/interceptors/deprecation.interceptor';
@@ -121,6 +122,7 @@ import { CorrelationModule } from './common/modules/correlation.module';
     AdminSearchModule,
     EntityLinkingModule,
     DeploymentMetadataModule,
+    DriftReportModule,
     SandboxModule,
     WebhooksModule,
     CorrelationModule,
