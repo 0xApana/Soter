@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.evidence_access_control import EvidenceAccessControl, EvidenceAccessControlError
+from services.artifact_access import ArtifactAccessError
 
 
 @pytest.fixture
@@ -23,8 +24,17 @@ def artifact_access_control():
         "/path/to/artifact.bin",
         {"org_id": "org-123", "filename": "test.bin", "mime_type": "application/octet-stream"},
     )
-    mock_artifact_service.enforce_org_ownership.return_value = None
-    
+
+    def _enforce_org(metadata, org_id):
+        # Mimic ArtifactAccessService.enforce_org_ownership: deny if the
+        # artifact's org does not match the requester's org.
+        if not org_id or not org_id.strip():
+            raise ArtifactAccessError("org_id_empty")
+        if metadata.get("org_id") != org_id:
+            raise ArtifactAccessError("forbidden_org")
+
+    mock_artifact_service.enforce_org_ownership.side_effect = _enforce_org
+
     return EvidenceAccessControl(mock_artifact_service)
 
 
@@ -49,7 +59,32 @@ def client_with_app(artifact_access_control):
     
     # Add the humanitarian router which requires evidence access control
     from api.v1.humanitarian import router as humanitarian_router
-    app.include_router(humanitarian_router)
+    # Match the production /v1 prefix added in api/v1/router.py so the
+    # endpoint resolves at /v1/ai/humanitarian/verify exactly as it does
+    # in deployment.
+    app.include_router(humanitarian_router, prefix="/v1")
+
+    # Mirror main.app's HTTPException -> ErrorEnvelope handler so tests
+    # see the same error response shape that production emits.
+    from fastapi.exceptions import HTTPException as FastAPIHTTPException
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from fastapi.responses import JSONResponse
+    from schemas.errors import ErrorDetail, ErrorEnvelope
+
+    async def _http_exception_handler(request, exc):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorEnvelope(
+                error=ErrorDetail(
+                    code=f"HTTP_{exc.status_code}", message=str(exc.detail)
+                )
+            ).model_dump(),
+        )
+
+    # Register the same handler for both FastAPI and Starlette HTTPExceptions
+    # so the fixture mirrors ``main.app``'s coverage of both exception types.
+    app.add_exception_handler(FastAPIHTTPException, _http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     
     # Mock services
     app.state.cache = Mock()
@@ -175,7 +210,12 @@ def test_endpoint_cross_org_access_denied(client_with_app, test_artifact_fixture
     
     # Should be denied - evidence belongs to different org
     assert response.status_code == 403
-    assert "Access denied" in response.json()["error"]["message"]
+    body = response.json()
+    # Match the main.app ``ErrorEnvelope`` shape produced by the global
+    # HTTPException handler in production.  The fixture mounts the same
+    # handler below so tests see the canonical envelope.
+    message = body.get("error", {}).get("message", "")
+    assert "Access denied" in message
 
 
 def test_endpoint_same_org_access_allowed(client_with_app, test_artifact_fixture):
@@ -250,7 +290,21 @@ def test_endpoint_audit_logging(client_with_app, test_artifact_fixture, caplog):
     
     # Should be denied
     assert response.status_code == 403
-    
-    # Check that evidence_access_check was logged
-    assert any("evidence_access_check" in record.message for record in caplog.records)
-    assert any("Access denied" in record.message for record in caplog.records)
+
+    # ``event`` / ``status`` / ``reason`` / ``artifact_ids`` are passed via
+    # ``extra=`` on the log call, so they land on the record as attributes
+    # rather than in the rendered message body.  Inspect them directly so
+    # the assertion stays decoupled from future message-text tweaks.
+    audit_records = [
+        r for r in caplog.records if getattr(r, "event", None) == "evidence_access_check"
+    ]
+    assert audit_records, "expected an evidence_access_check log record"
+    denied_records = [r for r in audit_records if getattr(r, "status", "") == "denied"]
+    assert denied_records, "expected at least one denied evidence_access_check record"
+    # The denial must identify the cross-org cause, not just be present.
+    assert any(getattr(r, "reason", "") == "forbidden_org" for r in denied_records)
+    # The denial must reference the artifact we tried to access.
+    assert any(
+        test_artifact_fixture in getattr(r, "artifact_ids", [])
+        for r in denied_records
+    )

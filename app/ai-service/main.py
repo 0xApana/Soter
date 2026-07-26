@@ -126,6 +126,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Response caching disabled (Redis unavailable)")
 
+    # Expose the long-lived collaboration/AIService collaborators on app state
+    # so versioned routers can resolve them via ``request.app.state`` instead of
+    # importing private globals from this module.  Tests inject Mocks onto the
+    # same keys via TestClient.app.state.
+    app.state.artifact_access_control = evidence_access_control
+    app.state.humanitarian_verification_service = humanitarian_verification_service
+
     yield
     logger.info("Shutting down Soter AI Service...")
 
@@ -157,6 +164,14 @@ artifact_access_service_instance = ArtifactAccessService(
     ttl_seconds=settings.verification_artifact_url_ttl_seconds,
 )
 evidence_access_control = EvidenceAccessControl(artifact_access_service_instance)
+
+# Wire the long-lived collaborators onto ``app.state`` at module-init time so
+# the production app *and* ``TestClient(app)`` (which does not enter lifespan
+# unless used as a context manager) both have these resolvable.  ``lifespan``
+# re-asserts the same references on startup so hot-reload / re-import
+# scenarios stay consistent.
+app.state.humanitarian_verification_service = humanitarian_verification_service
+app.state.artifact_access_control = evidence_access_control
 
 
 class InferenceRequest(BaseModel):

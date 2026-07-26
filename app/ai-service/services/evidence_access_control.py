@@ -49,7 +49,7 @@ class EvidenceAccessControl:
             EvidenceAccessControlError: If evidence access is not authorized
         """
         # Role-based access control
-        if not self._validate_role(user_role):
+        if not self.validate_role(user_role):
             self._log_access_attempt(
                 artifact_ids,
                 org_id,
@@ -74,9 +74,20 @@ class EvidenceAccessControl:
                 correlation_id,
             )
 
-    def _validate_role(self, role: str) -> bool:
-        """Validate that role is authorized for evidence access."""
-        return role in {"admin", "operator", "reviewer"}
+    def validate_role(self, role: str) -> bool:
+        """Validate that role is authorized via the artifact access service.
+
+        Public entry point so endpoint code can apply the same role gate
+        irrespective of whether ``artifact_ids`` were supplied (the
+        ``validate_evidence_access`` flow only runs when artifacts are
+        referenced, so endpoint code MUST call this for every request to
+        avoid a regression where a request with an invalid role and no
+        artifacts would otherwise be accepted).
+
+        Delegates to ``ArtifactAccessService.validate_role`` so the role
+        policy is owned in one place and easy to evolve.
+        """
+        return self.artifact_access_service.validate_role(role)
 
     def _validate_single_artifact_access(
         self,
