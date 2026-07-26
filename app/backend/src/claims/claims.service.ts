@@ -12,6 +12,7 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { ClaimReceiptDto, SendReceiptShareDto } from './dto/claim-receipt.dto';
+import { explorerTxUrl } from '../common/utils/explorer-url.util';
 import { ExportClaimsQueryDto } from './dto/export-claims.dto';
 import {
   ClaimStatus,
@@ -554,6 +555,52 @@ export class ClaimsService {
       ? this.buildExplorerLink(transactionHash) ?? undefined
       : undefined;
 
+    // Build timeline from audit logs
+    const timeline = await this.buildTimeline(claim.id);
+
+    return {
+      claimId: claim.id,
+      packageId: claim.campaignId,
+      status: claim.status,
+      amount: claim.amount,
+      timestamp: claim.createdAt.toISOString(),
+      tokenAddress,
+      recipientRef: claim.recipientRef,
+      transactionHash,
+      explorerLink,
+      timeline,
+    };
+  }
+
+  private async buildTimeline(claimId: string) {
+    const logs = await this.prisma.auditLog.findMany({
+      where: { entityId: claimId, entityType: 'claim' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return logs
+      .filter((log) => log.action.startsWith('status_changed_to_'))
+      .map((log) => {
+        const metadata = log.metadata as Record<string, any> | null;
+        const txHash = metadata?.transactionHash as string | undefined;
+        const network = this.configService.get<string>('STELLAR_NETWORK') ?? 'testnet';
+        return {
+          status: log.action.replace('status_changed_to_', ''),
+          timestamp: log.createdAt.toISOString(),
+          transactionHash: txHash,
+          explorerUrl: txHash ? explorerTxUrl(txHash, network) : undefined,
+        };
+      });
+  }
+
+    const tokenAddress = this.getTokenAddressForClaim(claim);
+
+    const txInfo = await this.findDisbursementTransaction(claim.id);
+    const transactionHash = txInfo?.transactionHash;
+    const explorerLink = transactionHash
+      ? this.buildExplorerLink(transactionHash) ?? undefined
+      : undefined;
+
     return {
       claimId: claim.id,
       packageId: claim.campaignId,
@@ -867,3 +914,5 @@ export class ClaimsService {
     return [header, ...lines].join('\r\n');
   }
 }
+
+
