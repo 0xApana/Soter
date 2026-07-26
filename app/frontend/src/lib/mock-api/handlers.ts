@@ -1134,9 +1134,33 @@ const inboxAddNoteHandler: MockHandler = async (url, options) => {
   });
 };
 
+const dashboardSummaryHandler: MockHandler = async () => {
+  // Derive live totals from the in-memory mock data instead of returning
+  // hard-coded zeros so that the dashboard cards display meaningful metrics.
+  const totalClaims = inboxItems.length;
+  const totalPackages = ALL_PACKAGES.length;
+  const pendingReviews = inboxItems.filter(
+    i => i.status === 'pending_review',
+  ).length;
+  const totalDisbursements = ALL_PACKAGES.filter(
+    p => p.status === 'Claimed',
+  ).length;
+
+  return new Response(
+    JSON.stringify({
+      totalClaims,
+      totalPackages,
+      pendingReviews,
+      totalDisbursements,
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
+};
+
 export const handlers: Record<string, MockHandler> = {
   '/health': healthHandler,
   '/aid-packages': aidPackagesHandler,
+  '/analytics/global-stats': dashboardSummaryHandler,
   '/recipients/import/validate': recipientsImportValidateHandler,
   '/recipients/import/confirm': recipientsImportConfirmHandler,
   '/notifications/activity-feed': activityFeedHandler,
