@@ -142,7 +142,7 @@ backend/src/jobs/
 
 The implementation uses:
 - `@nestjs/websockets` & `socket.io` - WebSocket server
-- `@liaoliaots/nestjs-redis` & `ioredis` - Redis client
+- `ioredis` - Redis client
 - `@nestjs/event-emitter` - Event system
 - `uuid` - Unique ID generation
 - Existing: `@nestjs/bullmq`, `bullmq`, `redis`

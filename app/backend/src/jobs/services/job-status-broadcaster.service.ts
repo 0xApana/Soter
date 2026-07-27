@@ -4,11 +4,11 @@
  * Handles event publishing and subscription management with reconnect support
  */
 
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRedis } from '@liaoliaots/nestjs-redis';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import { JobStatusEvent } from './dtos/job-status-event.dto';
+import { REDIS_CLIENT } from '../../redis/redis.module';
+import { JobStatusEvent } from '../dtos/job-status-event.dto';
 
 @Injectable()
 export class JobStatusBroadcaster {
@@ -40,7 +40,7 @@ export class JobStatusBroadcaster {
    */
   private readonly HISTORY_TTL = 86400;
 
-  constructor(@InjectRedis() private readonly redis: Redis) {}
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   /**
    * Get the channel name for a job

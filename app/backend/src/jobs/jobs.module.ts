@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
+import { RedisModule } from '../redis/redis.module';
 import { JobsController } from './jobs.controller';
 import { JobStatusStreamingController } from './controllers/job-status-streaming.controller';
 import { RETENTION_PURGE_QUEUE } from '../retention-policy/retention-purge.processor';
@@ -12,6 +13,7 @@ import { JobStatusGateway } from './gateways/job-status.gateway';
 
 @Module({
   imports: [
+    RedisModule,
     BullModule.registerQueue({ name: 'verification' }),
     BullModule.registerQueue({ name: 'notifications' }),
     BullModule.registerQueue({ name: 'onchain' }),

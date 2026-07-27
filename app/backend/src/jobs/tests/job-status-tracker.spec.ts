@@ -6,10 +6,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
-import { JobStatusTracker } from './services/job-status-tracker.service';
-import { JobStatusBroadcaster } from './services/job-status-broadcaster.service';
-import { JobStatus, JobType } from './dtos/job-status-event.dto';
-import { getRedisToken } from '@liaoliaots/nestjs-redis';
+import { REDIS_CLIENT } from '../../redis/redis.module';
+import { JobStatusTracker } from '../services/job-status-tracker.service';
+import { JobStatusBroadcaster } from '../services/job-status-broadcaster.service';
+import { JobStatus, JobType } from '../dtos/job-status-event.dto';
 
 describe('JobStatusTracker', () => {
   let service: JobStatusTracker;
@@ -36,7 +36,7 @@ describe('JobStatusTracker', () => {
         JobStatusTracker,
         JobStatusBroadcaster,
         {
-          provide: getRedisToken(),
+          provide: REDIS_CLIENT,
           useValue: mockRedis,
         },
       ],

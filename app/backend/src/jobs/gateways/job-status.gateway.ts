@@ -15,18 +15,18 @@ import {
   ConnectedSocket,
   WsException,
 } from '@nestjs/websockets';
-import { Logger, Injectable } from '@nestjs/common';
+import { Logger, Injectable, Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { InjectRedis } from '@liaoliaots/nestjs-redis';
 import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../redis/redis.module';
 
 import {
   JobStatusEvent,
   JobStatusSubscriptionOptions,
   SubscriptionAckDto,
 } from '../dtos/job-status-event.dto';
-import { JobStatusBroadcaster } from './job-status-broadcaster.service';
+import { JobStatusBroadcaster } from '../services/job-status-broadcaster.service';
 
 /**
  * Metadata about an active subscription
@@ -71,7 +71,7 @@ export class JobStatusGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   constructor(
     private readonly jobStatusBroadcaster: JobStatusBroadcaster,
-    @InjectRedis() private readonly redis: Redis,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   /**

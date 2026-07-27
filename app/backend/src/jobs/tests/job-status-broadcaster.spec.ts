@@ -4,11 +4,11 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRedisToken } from '@liaoliaots/nestjs-redis';
 import { v4 as uuidv4 } from 'uuid';
 
-import { JobStatusBroadcaster } from './services/job-status-broadcaster.service';
-import { JobStatusEvent, JobStatus, JobType } from './dtos/job-status-event.dto';
+import { REDIS_CLIENT } from '../../redis/redis.module';
+import { JobStatusBroadcaster } from '../services/job-status-broadcaster.service';
+import { JobStatusEvent, JobStatus, JobType } from '../dtos/job-status-event.dto';
 
 describe('JobStatusBroadcaster', () => {
   let service: JobStatusBroadcaster;
@@ -38,7 +38,7 @@ describe('JobStatusBroadcaster', () => {
       providers: [
         JobStatusBroadcaster,
         {
-          provide: getRedisToken(),
+          provide: REDIS_CLIENT,
           useValue: mockRedis,
         },
       ],
