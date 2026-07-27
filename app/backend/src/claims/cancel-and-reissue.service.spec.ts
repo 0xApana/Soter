@@ -44,8 +44,8 @@ describe('CancelAndReissueService', () => {
   };
 
   const mockEncryptionService = {
-    encrypt: jest.fn((v: string) => `encrypted:${v}`),
-    decrypt: jest.fn((v: string) => v.replace('encrypted:', '')),
+    encrypt: jest.fn((v: string) => v ? `encrypted:${v}` : v),
+    decrypt: jest.fn((v: string) => v ? v.replace('encrypted:', '') : v),
   };
 
   const mockMetricsService = {
