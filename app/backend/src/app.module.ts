@@ -53,6 +53,7 @@ import { CacheResponseInterceptor } from './common/interceptors/cache-response.i
 
 import { WebhooksModule } from 'src/webhooks.module';
 import { CorrelationModule } from './common/modules/correlation.module';
+import { RecipientImportModule } from './recipient-import/recipient-import.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { CorrelationModule } from './common/modules/correlation.module';
     SandboxModule,
     WebhooksModule,
     CorrelationModule,
+    RecipientImportModule,
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

@@ -6,6 +6,216 @@ export type MockHandler = (
   options?: RequestInit,
 ) => Promise<Response>;
 
+function base64UrlEncode(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function randomBytes(length: number): Uint8Array {
+  const arr = new Uint8Array(length);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+  } else {
+    for (let i = 0; i < length; i++) {
+      arr[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return arr;
+}
+
+interface StoredCredential {
+  id: string;
+  publicKey: string;
+  transports: string[];
+  counter: number;
+}
+
+const registeredCredentials: StoredCredential[] = [];
+
+const webauthnRegisterOptionsHandler: MockHandler = async (url) => {
+  const urlObj = new URL(url, 'http://localhost');
+  const username = urlObj.searchParams.get('username') ?? 'demo-user';
+  const displayName = urlObj.searchParams.get('displayName') ?? 'Demo User';
+  const userId = urlObj.searchParams.get('userId') ?? 'user-123';
+
+  const challenge = base64UrlEncode(randomBytes(32));
+  const userHandle = base64UrlEncode(new TextEncoder().encode(userId));
+
+  const options = {
+    challenge,
+    rp: {
+      name: 'Soter',
+      id: 'localhost',
+    },
+    user: {
+      id: userHandle,
+      name: username,
+      displayName,
+    },
+    pubKeyCredParams: [
+      { alg: -7, type: 'public-key' as const },
+      { alg: -257, type: 'public-key' as const },
+    ],
+    timeout: 60000,
+    attestation: 'none' as const,
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform' as const,
+      requireResidentKey: false,
+      userVerification: 'required' as const,
+    },
+    excludeCredentials: registeredCredentials.map((cred) => ({
+      id: cred.id,
+      type: 'public-key' as const,
+      transports: cred.transports as AuthenticatorTransport[],
+    })),
+  };
+
+  return new Response(JSON.stringify(options), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+const webauthnRegisterVerifyHandler: MockHandler = async (_url, options) => {
+  if (!options?.body) {
+    return new Response(JSON.stringify({ verified: false, message: 'Request body missing' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let payload: {
+    id?: string;
+    rawId?: string;
+    response?: { attestationObject?: string; clientDataJSON?: string };
+  };
+  try {
+    payload = JSON.parse(options.body.toString());
+  } catch {
+    return new Response(JSON.stringify({ verified: false, message: 'Invalid JSON' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!payload.id) {
+    return new Response(JSON.stringify({ verified: false, message: 'Credential ID missing' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const existing = registeredCredentials.find((c) => c.id === payload.id);
+  if (existing) {
+    return new Response(JSON.stringify({ verified: false, message: 'Credential already registered' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const newCred: StoredCredential = {
+    id: payload.id,
+    publicKey: payload.response?.attestationObject ?? 'mock-pub-key',
+    transports: ['internal'],
+    counter: 0,
+  };
+  registeredCredentials.push(newCred);
+
+  return new Response(
+    JSON.stringify({
+      verified: true,
+      credentialId: newCred.id,
+      message: 'Registration successful',
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+};
+
+const webauthnAuthOptionsHandler: MockHandler = async (url) => {
+  const urlObj = new URL(url, 'http://localhost');
+  const userId = urlObj.searchParams.get('userId');
+
+  const challenge = base64UrlEncode(randomBytes(32));
+
+  const allowCredentials = registeredCredentials.map((cred) => ({
+    id: cred.id,
+    type: 'public-key' as const,
+    transports: cred.transports as AuthenticatorTransport[],
+  }));
+
+  const options = {
+    challenge,
+    timeout: 60000,
+    rpId: 'localhost',
+    allowCredentials,
+    userVerification: 'required' as const,
+    extensions: {
+      uvm: true,
+    },
+  };
+
+  return new Response(JSON.stringify(options), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+const webauthnAuthVerifyHandler: MockHandler = async (_url, options) => {
+  if (!options?.body) {
+    return new Response(JSON.stringify({ verified: false, message: 'Request body missing' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let payload: { id?: string; response?: { authenticatorData?: string; clientDataJSON?: string; signature?: string } };
+  try {
+    payload = JSON.parse(options.body.toString());
+  } catch {
+    return new Response(JSON.stringify({ verified: false, message: 'Invalid JSON' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!payload.id) {
+    return new Response(JSON.stringify({ verified: false, message: 'Credential ID missing' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const cred = registeredCredentials.find((c) => c.id === payload.id);
+  if (!cred) {
+    return new Response(JSON.stringify({ verified: false, message: 'Credential not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  cred.counter += 1;
+
+  return new Response(
+    JSON.stringify({
+      verified: true,
+      credentialId: cred.id,
+      counter: cred.counter,
+      message: 'Authentication successful',
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+};
+
 const healthHandler: MockHandler = async () => {
   const mockResponse: BackendHealthResponse = {
     status: 'ok',
@@ -568,13 +778,115 @@ const recipientsImportConfirmHandler: MockHandler = async (_url, options) => {
   });
 };
 
+
+
+// POST /v1/verification-inbox/:id/notes
+const inboxAddNoteHandler: MockHandler = async (url, options) => {
+  const parts = url.split('?')[0].split('/');
+  const id = parts[parts.length - 2];
+  const item = inboxItems.find(i => i.id === id);
+
+  if (!item) {
+    return new Response(JSON.stringify({ message: 'Verification request not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let payload: { content?: string; category?: string } = {};
+  if (options?.body) {
+    try {
+      payload = JSON.parse(options.body.toString());
+    } catch { /* ignore */ }
+  }
+
+  const now = new Date().toISOString();
+  const note: InternalNote = {
+    id: `note-${++inboxNoteCounter}`,
+    entityType: 'verification',
+    entityId: id,
+    content: payload.content ?? '',
+    authorId: 'reviewer-demo',
+    category: payload.category ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  inboxNotes.push(note);
+
+  return new Response(JSON.stringify(note), {
+    status: 201,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+const dashboardSummaryHandler: MockHandler = async () => {
+  // Derive live totals from the in-memory mock data instead of returning
+  // hard-coded zeros so that the dashboard cards display meaningful metrics.
+  const totalClaims = inboxItems.length;
+  const totalPackages = ALL_PACKAGES.length;
+  const pendingReviews = inboxItems.filter(
+    i => i.status === 'pending_review',
+  ).length;
+  const totalDisbursements = ALL_PACKAGES.filter(
+    p => p.status === 'Claimed',
+  ).length;
+
+  return new Response(
+    JSON.stringify({
+      totalClaims,
+      totalPackages,
+      pendingReviews,
+      totalDisbursements,
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
+};
+
+
 export const handlers: Record<string, MockHandler> = {
   '/health': healthHandler,
   '/aid-packages': aidPackagesHandler,
+  '/analytics/global-stats': dashboardSummaryHandler,
   '/recipients/import/validate': recipientsImportValidateHandler,
   '/recipients/import/report': recipientsImportReportHandler,
   '/recipients/import/confirm': recipientsImportConfirmHandler,
   '/notifications/activity-feed': activityFeedHandler,
+
+  '/auth/webauthn/register/options': webauthnRegisterOptionsHandler,
+  '/auth/webauthn/register/verify': webauthnRegisterVerifyHandler,
+  '/auth/webauthn/auth/options': webauthnAuthOptionsHandler,
+  '/auth/webauthn/auth/verify': webauthnAuthVerifyHandler,
+  '/v1/verification-inbox': inboxListHandler,
+  '/v1/verification-inbox/stats': inboxStatsHandler,
+  '/v1/verification-inbox/:id': async (url, options) => {
+    const method = options?.method?.toUpperCase() ?? 'GET';
+    const path = url.split('?')[0];
+
+    if (path.endsWith('/approve') && method === 'POST') {
+      return inboxApproveHandler(url, options);
+    }
+    if (path.endsWith('/reject') && method === 'POST') {
+      return inboxRejectHandler(url, options);
+    }
+    if (path.endsWith('/request-resubmission') && method === 'POST') {
+      return inboxResubmitHandler(url, options);
+    }
+    if (path.endsWith('/notes') && method === 'GET') {
+      return inboxGetNotesHandler(url, options);
+    }
+    if (path.endsWith('/notes') && method === 'POST') {
+      return inboxAddNoteHandler(url, options);
+    }
+    if (method === 'GET') {
+      return inboxDetailHandler(url, options);
+    }
+
+    return new Response(JSON.stringify({ message: 'Method not implemented in mock' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+
   '/campaigns': async (url, options) => {
     const method = options?.method?.toUpperCase() ?? 'GET';
     if (method === 'POST') {
