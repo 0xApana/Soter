@@ -28,7 +28,7 @@ export class SandboxService {
     const nodeEnv = this.configService.get<string>('NODE_ENV');
     const allowedEnvironments = ['development', 'test', 'sandbox'];
 
-    if (!allowedEnvironments.includes(nodeEnv)) {
+    if (!allowedEnvironments.includes(nodeEnv ?? '')) {
       this.loggerService.warn(
         `Attempted demo seed reset in disallowed environment: ${nodeEnv}`,
         SandboxService.name,
@@ -72,7 +72,7 @@ export class SandboxService {
       );
 
       // 3. Delete Demo Tenant
-      await tx.ngo.deleteMany({
+      await tx.organization.deleteMany({
         where: { id: DEMO_TENANT_SEED.ngoId },
       });
       this.loggerService.log(
@@ -93,18 +93,14 @@ export class SandboxService {
    */
   private async seedDemoState(tx: any): Promise<void> {
     this.loggerService.log('Seeding demo tenant...', SandboxService.name);
-    const demoNgo = await tx.ngo.upsert({
+    const demoNgo = await tx.organization.upsert({
       where: { id: DEMO_TENANT_SEED.ngoId },
       update: {
         name: DEMO_TENANT_SEED.name,
-        description: DEMO_TENANT_SEED.description,
-        region: DEMO_TENANT_SEED.region,
       },
       create: {
         id: DEMO_TENANT_SEED.ngoId,
         name: DEMO_TENANT_SEED.name,
-        description: DEMO_TENANT_SEED.description,
-        region: DEMO_TENANT_SEED.region,
       },
     });
     this.loggerService.log(

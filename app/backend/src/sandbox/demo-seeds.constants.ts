@@ -213,7 +213,7 @@ export const DEMO_CLAIM_SEEDS: DemoClaimSeed[] = [
     campaignName: DEMO_CAMPAIGN_SEEDS[1].name, // 'Demo Campaign — Active'
     recipientRef: 'demo-recipient-004',
     amount: 250,
-    status: ClaimStatus.rejected,
+    status: ClaimStatus.cancelled,
     evidenceRef: 'evidence/demo-recipient-004/rejection-reason.pdf',
   },
 ];

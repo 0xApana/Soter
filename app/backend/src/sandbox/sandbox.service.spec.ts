@@ -96,8 +96,14 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is development', async () => {
       mockConfigService.get.mockReturnValue('development');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
-      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
+      mockPrisma.ngo.upsert.mockResolvedValue({
+        id: DEMO_TENANT_SEED.ngoId,
+        name: DEMO_TENANT_SEED.name,
+      });
+      mockPrisma.campaign.upsert.mockResolvedValue({
+        id: 'campaign-id',
+        name: DEMO_CAMPAIGN_SEEDS[0].name,
+      });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockLoggerService.log).toHaveBeenCalledWith(
@@ -113,8 +119,14 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is test', async () => {
       mockConfigService.get.mockReturnValue('test');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
-      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
+      mockPrisma.ngo.upsert.mockResolvedValue({
+        id: DEMO_TENANT_SEED.ngoId,
+        name: DEMO_TENANT_SEED.name,
+      });
+      mockPrisma.campaign.upsert.mockResolvedValue({
+        id: 'campaign-id',
+        name: DEMO_CAMPAIGN_SEEDS[0].name,
+      });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -122,8 +134,14 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is sandbox', async () => {
       mockConfigService.get.mockReturnValue('sandbox');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
-      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
+      mockPrisma.ngo.upsert.mockResolvedValue({
+        id: DEMO_TENANT_SEED.ngoId,
+        name: DEMO_TENANT_SEED.name,
+      });
+      mockPrisma.campaign.upsert.mockResolvedValue({
+        id: 'campaign-id',
+        name: DEMO_CAMPAIGN_SEEDS[0].name,
+      });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
