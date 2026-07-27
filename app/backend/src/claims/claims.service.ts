@@ -591,28 +591,7 @@ export class ClaimsService {
           explorerUrl: txHash ? explorerTxUrl(txHash, network) : undefined,
         };
       });
-  }
-
-    const tokenAddress = this.getTokenAddressForClaim(claim);
-
-    const txInfo = await this.findDisbursementTransaction(claim.id);
-    const transactionHash = txInfo?.transactionHash;
-    const explorerLink = transactionHash
-      ? this.buildExplorerLink(transactionHash) ?? undefined
-      : undefined;
-
-    return {
-      claimId: claim.id,
-      packageId: claim.campaignId,
-      status: claim.status,
-      amount: claim.amount,
-      timestamp: claim.createdAt.toISOString(),
-      tokenAddress,
-      recipientRef: claim.recipientRef,
-      transactionHash,
-      explorerLink,
-    };
-  }
+}
 
   /**
    * Generate and share a claim receipt
