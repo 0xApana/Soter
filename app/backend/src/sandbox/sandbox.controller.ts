@@ -1,14 +1,6 @@
-import {
-  Controller,
-  Post,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SandboxService } from './sandbox.service';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Sandbox')
@@ -29,7 +21,8 @@ export class SandboxController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden. This operation is not allowed in this environment.',
+    description:
+      'Forbidden. This operation is not allowed in this environment.',
   })
   @Public() // Allow unauthenticated access, as the service handles environment-based authorization
   async resetDemoSeed(): Promise<{ message: string }> {

@@ -7,7 +7,6 @@ import {
   DEMO_CAMPAIGN_SEEDS,
   DEMO_CLAIM_SEEDS,
 } from './demo-seeds.constants';
-import { CampaignStatus, ClaimStatus } from '@prisma/client';
 
 @Injectable()
 export class SandboxService {
@@ -41,9 +40,9 @@ export class SandboxService {
 
     this.loggerService.log('Starting demo seed reset...', SandboxService.name);
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async tx => {
       // 1. Delete Claims associated with demo campaigns
-      const demoCampaignNames = DEMO_CAMPAIGN_SEEDS.map((c) => c.name);
+      const demoCampaignNames = DEMO_CAMPAIGN_SEEDS.map(c => c.name);
       const demoCampaigns = await tx.campaign.findMany({
         where: {
           ngoId: DEMO_TENANT_SEED.ngoId,
@@ -51,7 +50,7 @@ export class SandboxService {
         },
         select: { id: true },
       });
-      const demoCampaignIds = demoCampaigns.map((c) => c.id);
+      const demoCampaignIds = demoCampaigns.map(c => c.id);
 
       if (demoCampaignIds.length > 0) {
         await tx.claim.deleteMany({
@@ -108,7 +107,10 @@ export class SandboxService {
         region: DEMO_TENANT_SEED.region,
       },
     });
-    this.loggerService.log(`Seeded demo NGO: ${demoNgo.name}.`, SandboxService.name);
+    this.loggerService.log(
+      `Seeded demo NGO: ${demoNgo.name}.`,
+      SandboxService.name,
+    );
 
     const createdCampaigns = new Map<string, string>(); // Map campaign name to ID
 
@@ -132,7 +134,10 @@ export class SandboxService {
         },
       });
       createdCampaigns.set(campaign.name, campaign.id);
-      this.loggerService.log(`Seeded campaign: ${campaign.name}.`, SandboxService.name);
+      this.loggerService.log(
+        `Seeded campaign: ${campaign.name}.`,
+        SandboxService.name,
+      );
     }
 
     this.loggerService.log('Seeding demo claims...', SandboxService.name);
@@ -170,6 +175,9 @@ export class SandboxService {
         );
       }
     }
-    this.loggerService.log('Demo state seeding completed.', SandboxService.name);
+    this.loggerService.log(
+      'Demo state seeding completed.',
+      SandboxService.name,
+    );
   }
 }

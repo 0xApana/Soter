@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SandboxController } from './sandbox.controller';
 import { SandboxService } from './sandbox.service';
-import { ForbiddenException } from '@nestjs/common';
 
 describe('SandboxController', () => {
   let controller: SandboxController;
-  let service: SandboxService;
+  let _service: SandboxService;
 
   const mockSandboxService = {
     resetDemoState: jest.fn(),
@@ -23,7 +22,7 @@ describe('SandboxController', () => {
     }).compile();
 
     controller = module.get<SandboxController>(SandboxController);
-    service = module.get<SandboxService>(SandboxService);
+    _service = module.get<SandboxService>(SandboxService);
 
     jest.clearAllMocks();
   });
@@ -35,7 +34,9 @@ describe('SandboxController', () => {
   describe('resetDemoSeed', () => {
     it('should call sandboxService.resetDemoState and return a success message', async () => {
       mockSandboxService.resetDemoState.mockResolvedValue(undefined);
-      await expect(controller.resetDemoSeed()).resolves.toEqual({ message: 'Demo seed data reset successfully.' });
+      await expect(controller.resetDemoSeed()).resolves.toEqual({
+        message: 'Demo seed data reset successfully.',
+      });
       expect(mockSandboxService.resetDemoState).toHaveBeenCalledTimes(1);
     });
   });

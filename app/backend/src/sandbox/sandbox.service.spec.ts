@@ -12,9 +12,9 @@ import {
 
 describe('SandboxService', () => {
   let service: SandboxService;
-  let prisma: PrismaService;
-  let loggerService: LoggerService;
-  let configService: ConfigService;
+  let _prisma: PrismaService;
+  let _loggerService: LoggerService;
+  let _configService: ConfigService;
 
   const mockPrisma = {
     ngo: {
@@ -30,7 +30,7 @@ describe('SandboxService', () => {
       deleteMany: jest.fn(),
       upsert: jest.fn(),
     },
-    $transaction: jest.fn(async (callback) => {
+    $transaction: jest.fn(async callback => {
       // Mock transaction to directly call the callback with a mock client
       return await callback(mockPrisma);
     }),
@@ -57,9 +57,9 @@ describe('SandboxService', () => {
     }).compile();
 
     service = module.get<SandboxService>(SandboxService);
-    prisma = module.get<PrismaService>(PrismaService);
-    loggerService = module.get<LoggerService>(LoggerService);
-    configService = module.get<ConfigService>(ConfigService);
+    _prisma = module.get<PrismaService>(PrismaService);
+    _loggerService = module.get<LoggerService>(LoggerService);
+    _configService = module.get<ConfigService>(ConfigService);
 
     jest.clearAllMocks();
   });
@@ -95,7 +95,9 @@ describe('SandboxService', () => {
 
     it('should proceed if NODE_ENV is development', async () => {
       mockConfigService.get.mockReturnValue('development');
-      mockPrisma.campaign.findMany.mockResolvedValue([]); // No existing campaigns
+      mockPrisma.campaign.findMany.mockResolvedValue([]);
+      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
+      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockLoggerService.log).toHaveBeenCalledWith(
@@ -110,14 +112,18 @@ describe('SandboxService', () => {
 
     it('should proceed if NODE_ENV is test', async () => {
       mockConfigService.get.mockReturnValue('test');
-      mockPrisma.campaign.findMany.mockResolvedValue([]); // No existing campaigns
+      mockPrisma.campaign.findMany.mockResolvedValue([]);
+      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
+      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('should proceed if NODE_ENV is sandbox', async () => {
       mockConfigService.get.mockReturnValue('sandbox');
-      mockPrisma.campaign.findMany.mockResolvedValue([]); // No existing campaigns
+      mockPrisma.campaign.findMany.mockResolvedValue([]);
+      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId, name: DEMO_TENANT_SEED.name });
+      mockPrisma.campaign.upsert.mockResolvedValue({ id: 'campaign-id', name: DEMO_CAMPAIGN_SEEDS[0].name });
       await service.resetDemoState();
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -133,7 +139,7 @@ describe('SandboxService', () => {
 
       // Mock upsert operations to return the created/updated object
       mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId });
-      mockPrisma.campaign.upsert.mockImplementation((args) =>
+      mockPrisma.campaign.upsert.mockImplementation(args =>
         Promise.resolve({ id: 'new-campaign-id', ...args.create }),
       );
       mockPrisma.claim.upsert.mockResolvedValue({});
@@ -142,7 +148,7 @@ describe('SandboxService', () => {
 
       // Verify delete order
       expect(mockPrisma.claim.deleteMany).toHaveBeenCalledWith({
-        where: { campaignId: { in: mockCampaigns.map((c) => c.id) } },
+        where: { campaignId: { in: mockCampaigns.map(c => c.id) } },
       });
       expect(mockPrisma.campaign.deleteMany).toHaveBeenCalledWith({
         where: { ngoId: DEMO_TENANT_SEED.ngoId },
