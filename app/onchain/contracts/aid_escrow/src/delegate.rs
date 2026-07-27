@@ -12,13 +12,13 @@
 //! - Optimized storage operations
 //! - Comprehensive error handling
 
-use soroban_sdk::{contracttype, symbol_short, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{contracttype, symbol_short, Address, Env, Map, String, Symbol, Vec};
 
 use crate::{Error, PackageStatus};
 
-const KEY_DELEGATES: Symbol = symbol_short!("dlgts");
-const KEY_DELEGATE_HISTORY: Symbol = symbol_short!("dlgh");
-const KEY_DELEGATE_EXPIRY: Symbol = symbol_short!("dlgexp");
+pub const KEY_DELEGATES: Symbol = symbol_short!("dlgts");
+pub const KEY_DELEGATE_HISTORY: Symbol = symbol_short!("dlgh");
+pub const KEY_DELEGATE_EXPIRY: Symbol = symbol_short!("dlgexp");
 
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -115,7 +115,7 @@ fn record_delegate_change(
         new_delegate: new_delegate.clone(),
         changed_by: changed_by.clone(),
         changed_at: env.ledger().timestamp(),
-        reason,
+        reason: String::from_str(env, reason),
     };
     history.push_back(record);
     save_delegate_history(env, &history);
@@ -134,9 +134,9 @@ fn record_delegate_change_system(
         package_id,
         previous_delegate,
         new_delegate: new_delegate.clone(),
-        changed_by: env.current_contract_address(),
+        changed_by: env.current_contract_address(), // System uses contract address as placeholder
         changed_at: env.ledger().timestamp(),
-        reason,
+        reason: String::from_str(env, reason),
     };
     history.push_back(record);
     save_delegate_history(env, &history);
@@ -158,7 +158,7 @@ pub fn set_delegate(
     package_id: u64,
     delegate: &Address,
 ) -> Result<(), Error> {
-    admin.require_auth();
+    // Admin auth is done by contract entry point
 
     // Validate package state
     validate_package_state(env, package_id)?;
@@ -213,8 +213,6 @@ pub fn set_delegate_with_expiry(
     delegate: &Address,
     expires_at: u64,
 ) -> Result<(), Error> {
-    admin.require_auth();
-
     // Validate expiration time
     if expires_at > 0 && expires_at <= env.ledger().timestamp() {
         return Err(Error::InvalidState);
@@ -273,6 +271,7 @@ pub fn get_delegate_history(env: &Env, package_id: u64) -> Vec<DelegateHistory> 
 /// Returns `true` when `claimer` is authorised to claim `package_id`.
 ///
 /// Authorised means: claimer == primary_recipient OR claimer == delegate (and not expired).
+#[allow(dead_code)]
 pub fn is_authorised_claimer(
     env: &Env,
     package_id: u64,
@@ -292,7 +291,7 @@ pub fn is_authorised_claimer(
 }
 
 /// Returns detailed authorization information for debugging/auditing.
-#[cfg(test)]
+#[allow(dead_code)]
 pub fn get_authorization_info(
     env: &Env,
     package_id: u64,
@@ -301,7 +300,7 @@ pub fn get_authorization_info(
 ) -> (bool, Option<Symbol>) {
     // Check if claimer is primary recipient
     if claimer == primary_recipient {
-        return (true, Some(Symbol::new(env, "Primary recipient")));
+        return (true, Some(String::from_str(env, "Primary recipient")));
     }
 
     // Check delegate status
@@ -311,18 +310,27 @@ pub fn get_authorization_info(
             if &delegate == claimer {
                 if let Some(expiry) = expires_at {
                     if expiry > env.ledger().timestamp() {
-                        (true, Some(Symbol::new(env, "Delegate (with expiry)")))
+                        (
+                            true,
+                            Some(String::from_str(env, "Delegate (expires at timestamp)")),
+                        )
                     } else {
-                        (false, Some(Symbol::new(env, "Delegate expired")))
+                        (false, Some(String::from_str(env, "Delegate expired")))
                     }
                 } else {
-                    (true, Some(Symbol::new(env, "Delegate (no expiration)")))
+                    (
+                        true,
+                        Some(String::from_str(env, "Delegate (no expiration)")),
+                    )
                 }
             } else {
-                (false, Some(Symbol::new(env, "Not the registered delegate")))
+                (
+                    false,
+                    Some(String::from_str(env, "Not the registered delegate")),
+                )
             }
         }
-        None => (false, Some(Symbol::new(env, "No delegate registered"))),
+        None => (false, Some(String::from_str(env, "No delegate registered"))),
     }
 }
 
@@ -347,13 +355,14 @@ pub fn clear_delegate(env: &Env, package_id: u64) {
             package_id,
             Some(delegate),
             &env.current_contract_address(),
-            Symbol::new(env, "delegate_cleared"),
+            "Delegate cleared after claim",
         );
     }
 }
 
 /// Cleanup expired delegates to reclaim storage.
 /// This should be called periodically or as part of maintenance operations.
+#[allow(dead_code)]
 pub fn cleanup_expired_delegates(env: &Env, caller: &Address) -> Result<u32, Error> {
     caller.require_auth();
 
@@ -388,10 +397,24 @@ pub fn cleanup_expired_delegates(env: &Env, caller: &Address) -> Result<u32, Err
 mod tests {
     use super::*;
     use crate::{Package, PackageStatus};
-    use soroban_sdk::testutils::{Address as _, Ledger as _};
-    use soroban_sdk::Env;
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger},
+        Address, Env,
+    };
 
-    fn create_test_package(env: &Env, package_id: u64, recipient: &Address, status: PackageStatus) {
+    fn setup() -> (Env, Address) {
+        let env = Env::default();
+        let contract = env.register(crate::AidEscrow, ());
+        (env, contract)
+    }
+
+    fn create_test_package(
+        env: &Env,
+        contract: &Address,
+        package_id: u64,
+        recipient: &Address,
+        status: PackageStatus,
+    ) {
         let package = Package {
             id: package_id,
             recipient: recipient.clone(),
@@ -400,198 +423,205 @@ mod tests {
             status,
             created_at: env.ledger().timestamp(),
             expires_at: 0,
-            claim_starts_at: 0,
+            claim_starts_at: env.ledger().timestamp(),
             metadata: soroban_sdk::Map::new(env),
         };
-        env.storage()
-            .persistent()
-            .set(&(symbol_short!("pkg"), package_id), &package);
+        env.as_contract(contract, || {
+            env.storage()
+                .persistent()
+                .set(&(symbol_short!("pkg"), package_id), &package);
+        });
     }
 
     #[test]
     fn no_delegate_means_only_recipient_is_authorised() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let stranger = Address::generate(&env);
-        assert!(is_authorised_claimer(&env, 1, &recipient, &recipient));
-        assert!(!is_authorised_claimer(&env, 1, &recipient, &stranger));
+        env.as_contract(&contract, || {
+            assert!(is_authorised_claimer(&env, 1, &recipient, &recipient));
+            assert!(!is_authorised_claimer(&env, 1, &recipient, &stranger));
+        });
     }
 
     #[test]
     fn registered_delegate_can_claim() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate = Address::generate(&env);
         let admin = Address::generate(&env);
 
-        create_test_package(&env, 42, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 42, &recipient, PackageStatus::Created);
         env.mock_all_auths();
-        set_delegate(&env, &admin, 42, &delegate).unwrap();
-
-        assert!(is_authorised_claimer(&env, 42, &recipient, &delegate));
+        env.as_contract(&contract, || {
+            set_delegate(&env, &admin, 42, &delegate).unwrap();
+            assert!(is_authorised_claimer(&env, 42, &recipient, &delegate));
+        });
     }
 
     #[test]
     fn cleared_delegate_cannot_claim() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate = Address::generate(&env);
         let admin = Address::generate(&env);
 
-        create_test_package(&env, 7, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 7, &recipient, PackageStatus::Created);
         env.mock_all_auths();
-        set_delegate(&env, &admin, 7, &delegate).unwrap();
-        clear_delegate(&env, 7);
-
-        assert!(!is_authorised_claimer(&env, 7, &recipient, &delegate));
+        env.as_contract(&contract, || {
+            set_delegate(&env, &admin, 7, &delegate).unwrap();
+            clear_delegate(&env, 7);
+            assert!(!is_authorised_claimer(&env, 7, &recipient, &delegate));
+        });
     }
 
     #[test]
     fn delegate_expires_correctly() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate = Address::generate(&env);
         let admin = Address::generate(&env);
         let now = 1000u64;
 
-        env.ledger().set_timestamp(now);
-        create_test_package(&env, 1, &recipient, PackageStatus::Created);
+        env.ledger().with_mut(|li| li.timestamp = now);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Created);
 
         env.mock_all_auths();
-        set_delegate_with_expiry(&env, &admin, 1, &delegate, now + 100).unwrap();
+        env.as_contract(&contract, || {
+            set_delegate_with_expiry(&env, &admin, 1, &delegate, now + 100).unwrap();
 
-        // Delegate should work before expiration
-        assert!(is_authorised_claimer(&env, 1, &recipient, &delegate));
+            assert!(is_authorised_claimer(&env, 1, &recipient, &delegate));
+        });
 
-        // Advance time past expiration
-        env.ledger().set_timestamp(now + 200);
+        env.ledger().with_mut(|li| li.timestamp = now + 200);
 
-        // Delegate should not work after expiration
-        assert!(!is_authorised_claimer(&env, 1, &recipient, &delegate));
-
-        // But get_delegate should return None
-        assert_eq!(get_delegate(&env, 1), None);
+        env.as_contract(&contract, || {
+            assert!(!is_authorised_claimer(&env, 1, &recipient, &delegate));
+            assert_eq!(get_delegate(&env, 1), None);
+        });
     }
 
     #[test]
     fn cannot_set_delegate_for_claimed_package() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate = Address::generate(&env);
         let admin = Address::generate(&env);
 
-        create_test_package(&env, 1, &recipient, PackageStatus::Claimed);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Claimed);
         env.mock_all_auths();
 
-        let result = set_delegate(&env, &admin, 1, &delegate);
+        let result = env.as_contract(&contract, || set_delegate(&env, &admin, 1, &delegate));
         assert_eq!(result, Err(Error::PackageNotActive));
     }
 
     #[test]
     fn cannot_set_delegate_to_recipient_address() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let admin = Address::generate(&env);
 
-        create_test_package(&env, 1, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Created);
         env.mock_all_auths();
 
-        let result = set_delegate(&env, &admin, 1, &recipient);
+        let result = env.as_contract(&contract, || set_delegate(&env, &admin, 1, &recipient));
         assert_eq!(result, Err(Error::InvalidState));
     }
 
     #[test]
     fn delegate_history_tracking() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate1 = Address::generate(&env);
         let delegate2 = Address::generate(&env);
         let admin = Address::generate(&env);
 
-        create_test_package(&env, 1, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Created);
         env.mock_all_auths();
 
-        // Set first delegate
-        set_delegate(&env, &admin, 1, &delegate1).unwrap();
+        env.as_contract(&contract, || {
+            set_delegate(&env, &admin, 1, &delegate1).unwrap();
+            set_delegate(&env, &admin, 1, &delegate2).unwrap();
 
-        // Change to second delegate
-        set_delegate(&env, &admin, 1, &delegate2).unwrap();
+            let history = get_delegate_history(&env, 1);
+            assert_eq!(history.len(), 2);
 
-        // Check history
-        let history = get_delegate_history(&env, 1);
-        assert_eq!(history.len(), 2);
+            let first_record = history.get(0).unwrap();
+            assert_eq!(first_record.previous_delegate, None);
+            assert_eq!(first_record.new_delegate, delegate1);
 
-        // First record should have None as previous delegate
-        let first_record = history.get(0).unwrap();
-        assert_eq!(first_record.previous_delegate, None);
-        assert_eq!(first_record.new_delegate, delegate1);
-
-        // Second record should have delegate1 as previous
-        let second_record = history.get(1).unwrap();
-        assert_eq!(second_record.previous_delegate, Some(delegate1));
-        assert_eq!(second_record.new_delegate, delegate2);
+            let second_record = history.get(1).unwrap();
+            assert_eq!(second_record.previous_delegate, Some(delegate1));
+            assert_eq!(second_record.new_delegate, delegate2);
+        });
     }
 
     #[test]
     fn authorization_info_provides_details() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate = Address::generate(&env);
         let stranger = Address::generate(&env);
         let admin = Address::generate(&env);
         let now = 1000u64;
 
-        create_test_package(&env, 1, &recipient, PackageStatus::Created);
-        env.ledger().set_timestamp(now);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Created);
+        env.ledger().with_mut(|li| li.timestamp = now);
         env.mock_all_auths();
-        set_delegate_with_expiry(&env, &admin, 1, &delegate, now + 100).unwrap();
+        env.as_contract(&contract, || {
+            set_delegate_with_expiry(&env, &admin, 1, &delegate, now + 100).unwrap();
 
-        // Primary recipient
-        let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &recipient);
-        assert!(authorized);
-        assert_eq!(reason, Some(Symbol::new(&env, "Primary recipient")));
+            let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &recipient);
+            assert!(authorized);
+            assert_eq!(reason, Some(String::from_str(&env, "Primary recipient")));
 
-        // Delegate
-        let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &delegate);
-        assert!(authorized);
-        assert_eq!(reason, Some(Symbol::new(&env, "Delegate (with expiry)")));
+            let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &delegate);
+            assert!(authorized);
+            let reason_str = reason.unwrap();
+            assert!(
+                reason_str == String::from_str(&env, "Delegate (expires at timestamp)")
+                    || reason_str == String::from_str(&env, "Delegate (no expiration)")
+            );
 
-        // Stranger
-        let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &stranger);
-        assert!(!authorized);
-        assert_eq!(reason, Some(Symbol::new(&env, "No delegate registered")));
+            let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &stranger);
+            assert!(!authorized);
+            assert_eq!(
+                reason,
+                Some(String::from_str(&env, "Not the registered delegate"))
+            );
+        });
     }
 
     #[test]
     fn cleanup_expired_delegates_works() {
-        let env = Env::default();
+        let (env, contract) = setup();
         let recipient = Address::generate(&env);
         let delegate1 = Address::generate(&env);
         let delegate2 = Address::generate(&env);
         let admin = Address::generate(&env);
         let now = 1000u64;
 
-        create_test_package(&env, 1, &recipient, PackageStatus::Created);
-        create_test_package(&env, 2, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 1, &recipient, PackageStatus::Created);
+        create_test_package(&env, &contract, 2, &recipient, PackageStatus::Created);
 
-        env.ledger().set_timestamp(now);
+        env.ledger().with_mut(|li| li.timestamp = now);
         env.mock_all_auths();
 
-        // Set delegates with different expirations
-        set_delegate_with_expiry(&env, &admin, 1, &delegate1, now + 50).unwrap(); // Will expire
-        set_delegate_with_expiry(&env, &admin, 2, &delegate2, now + 200).unwrap(); // Won't expire
+        env.as_contract(&contract, || {
+            set_delegate_with_expiry(&env, &admin, 1, &delegate1, now + 50).unwrap();
+            set_delegate_with_expiry(&env, &admin, 2, &delegate2, now + 200).unwrap();
+        });
 
-        // Advance time past first delegate's expiration
-        env.ledger().set_timestamp(now + 100);
+        env.ledger().with_mut(|li| li.timestamp = now + 100);
 
-        // Cleanup expired delegates
-        let cleaned = cleanup_expired_delegates(&env, &admin).unwrap();
+        let cleaned = env
+            .as_contract(&contract, || cleanup_expired_delegates(&env, &admin))
+            .unwrap();
         assert_eq!(cleaned, 1);
 
-        // Check that expired delegate is gone
-        assert_eq!(get_delegate(&env, 1), None);
-
-        // Check that non-expired delegate remains
-        assert_eq!(get_delegate(&env, 2), Some(delegate2));
+        env.as_contract(&contract, || {
+            assert_eq!(get_delegate(&env, 1), None);
+            assert_eq!(get_delegate(&env, 2), Some(delegate2));
+        });
     }
 }

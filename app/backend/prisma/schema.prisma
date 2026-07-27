@@ -584,6 +584,25 @@ model UploadChunk {
   @@index([sessionId])
 }
 
+model ArtifactAccessToken {
+  id            String   @id @default(cuid())
+  artifactId    String
+  orgId         String
+  userId        String
+  role          String
+  tokenHash     String   @unique // SHA-256 hash of the token for revocation tracking
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  createdAt     DateTime @default(now())
+
+  @@index([artifactId])
+  @@index([orgId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
 enum NotificationOutboxStatus {
   pending
   enqueued
@@ -790,6 +809,31 @@ model DeploymentMetadata {
   @@index([deployedAt])
 }
 
+enum ImportJobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model ImportJob {
+  id            String          @id @default(cuid())
+  status        ImportJobStatus @default(pending)
+  campaignId    String
+  totalRows     Int             @default(0)
+  processedRows Int             @default(0)
+  errorRows     Int             @default(0)
+  errors        String?
+  reportUrl     String?
+  fileName      String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  completedAt   DateTime?
+
+  @@index([campaignId])
+  @@index([status])
+}
+
 enum SorobanEventTopic {
   package_created
   package_claimed
@@ -805,6 +849,14 @@ enum SorobanEventTopic {
   claim_cancelled
   claim_archived
   escrow_initialized
+  escrow_funded
+  batch_created_event
+  extended_event
+  surplus_withdrawn_event
+  contract_paused_event
+  contract_unpaused_event
+  action_paused_event
+  action_unpaused_event
   config_updated
   admin_updated
   tokens_allowed
