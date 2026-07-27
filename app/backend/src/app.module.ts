@@ -53,6 +53,7 @@ import { CacheResponseInterceptor } from './common/interceptors/cache-response.i
 import { WebhooksModule } from 'src/webhooks.module';
 import { CorrelationModule } from './common/modules/correlation.module';
 import { RecipientImportModule } from './recipient-import/recipient-import.module';
+import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { RecipientImportModule } from './recipient-import/recipient-import.modul
     WebhooksModule,
     CorrelationModule,
     RecipientImportModule,
+    DeviceTokensModule,
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -139,7 +141,8 @@ import { RecipientImportModule } from './recipient-import/recipient-import.modul
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const redisHost = configService.get<string>('REDIS_HOST') ?? 'localhost';
+        const redisHost =
+          configService.get<string>('REDIS_HOST') ?? 'localhost';
         const redisPort = parseInt(
           configService.get<string>('REDIS_PORT') ?? '6379',
           10,
