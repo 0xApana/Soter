@@ -4,6 +4,7 @@ import { CancelAndReissueService } from './cancel-and-reissue.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
+import { MetricsService } from '../observability/metrics/metrics.service';
 import { ClaimStatus } from '@prisma/client';
 import { CLAIM_EVENT } from './claim.events';
 
@@ -47,6 +48,12 @@ describe('CancelAndReissueService', () => {
     decrypt: jest.fn((v: string) => v.replace('encrypted:', '')),
   };
 
+  const mockMetricsService = {
+    incrementClaimsCancelled: jest.fn(),
+    adjustClaimsInFunnel: jest.fn(),
+    incrementClaimsCreated: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +61,7 @@ describe('CancelAndReissueService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: EncryptionService, useValue: mockEncryptionService },
+        { provide: MetricsService, useValue: mockMetricsService },
       ],
     }).compile();
 
