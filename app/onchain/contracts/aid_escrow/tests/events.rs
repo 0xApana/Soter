@@ -426,7 +426,7 @@ fn test_delegate_claimed_event() {
     assert_eq!(data_address(&env, &data, "delegate"), delegate);
     assert_eq!(data_i128(&env, &data, "amount"), UNIT);
     assert_field_exists(&env, &data, "timestamp");
-    
+
     // Also check that DelegateRevoked event was emitted (delegate is cleared after claim)
     let revoked_data = last_event_data(&env, &contract_id, "delegate_revoked");
     assert_eq!(data_u64(&env, &revoked_data, "package_id"), 42);

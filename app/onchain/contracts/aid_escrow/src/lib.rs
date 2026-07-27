@@ -824,7 +824,15 @@ impl AidEscrow {
         let payout_recipient = package.recipient.clone();
         let claimant = package.recipient.clone();
 
-        Self::finalize_claim(&env, &key, &mut package, id, &payout_recipient, &claimant, now)
+        Self::finalize_claim(
+            &env,
+            &key,
+            &mut package,
+            id,
+            &payout_recipient,
+            &claimant,
+            now,
+        )
     }
 
     /// Claim a package guarded by an optional Merkle allowlist.
@@ -1726,7 +1734,8 @@ impl AidEscrow {
 
         // Validate package state
         let key = (symbol_short!("pkg"), package_id);
-        let package: Package = env.storage()
+        let package: Package = env
+            .storage()
             .persistent()
             .get(&key)
             .ok_or(Error::PackageNotFound)?;
@@ -1746,7 +1755,8 @@ impl AidEscrow {
         // Emit event
         let timestamp = env.ledger().timestamp();
         // Get expiry if any
-        let expiry_map: Map<u64, u64> = env.storage()
+        let expiry_map: Map<u64, u64> = env
+            .storage()
             .persistent()
             .get(&crate::delegate::KEY_DELEGATE_EXPIRY)
             .unwrap_or(Map::new(&env));
@@ -1796,7 +1806,8 @@ impl AidEscrow {
 
         // Validate package state
         let key = (symbol_short!("pkg"), package_id);
-        let package: Package = env.storage()
+        let package: Package = env
+            .storage()
             .persistent()
             .get(&key)
             .ok_or(Error::PackageNotFound)?;
@@ -1838,16 +1849,13 @@ impl AidEscrow {
     ///
     /// # Errors
     /// - `Error::PackageNotFound` - Package doesn't exist
-    pub fn revoke_delegate(
-        env: Env,
-        admin: Address,
-        package_id: u64,
-    ) -> Result<(), Error> {
+    pub fn revoke_delegate(env: Env, admin: Address, package_id: u64) -> Result<(), Error> {
         admin.require_auth();
 
         // Check package exists
         let key = (symbol_short!("pkg"), package_id);
-        let package: Package = env.storage()
+        let package: Package = env
+            .storage()
             .persistent()
             .get(&key)
             .ok_or(Error::PackageNotFound)?;
@@ -1886,7 +1894,10 @@ impl AidEscrow {
     }
 
     /// Gets the delegate history for a package.
-    pub fn get_delegate_history(env: Env, package_id: u64) -> Vec<crate::delegate::DelegateHistory> {
+    pub fn get_delegate_history(
+        env: Env,
+        package_id: u64,
+    ) -> Vec<crate::delegate::DelegateHistory> {
         crate::delegate::get_delegate_history(&env, package_id)
     }
 }
