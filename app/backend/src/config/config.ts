@@ -7,4 +7,4 @@ export default registerAs('config', () => ({
    * NOTE: Keep env names consistent with service usage.
    */
   aiWebhookSecret: process.env.AI_WEBHOOK_SECRET,
-}));
+})); 
