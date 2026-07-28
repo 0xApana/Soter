@@ -15,10 +15,10 @@ from services.providers import (
     TesseractOCRProvider,
 )
 
-
 # ---------------------------------------------------------------------------
 # ModelProvider base class
 # ---------------------------------------------------------------------------
+
 
 class TestModelProviderBase:
     def test_cannot_instantiate_abstract(self):
@@ -50,9 +50,12 @@ class TestModelProviderBase:
 # LLMResponse / OCRResponse data classes
 # ---------------------------------------------------------------------------
 
+
 class TestResponseTypes:
     def test_llm_response_fields(self):
-        r = LLMResponse(content="hello", provider="openai", model="gpt-4", latency_ms=100)
+        r = LLMResponse(
+            content="hello", provider="openai", model="gpt-4", latency_ms=100
+        )
         assert r.content == "hello"
         assert r.provider == "openai"
         assert r.model == "gpt-4"
@@ -60,7 +63,12 @@ class TestResponseTypes:
 
     def test_ocr_response_fields(self):
         fields = {"name": OCRField(value="John", confidence=0.9)}
-        r = OCRResponse(fields=fields, raw_text="Name: John", processing_time_ms=50, provider="tesseract")
+        r = OCRResponse(
+            fields=fields,
+            raw_text="Name: John",
+            processing_time_ms=50,
+            provider="tesseract",
+        )
         assert r.fields["name"].value == "John"
         assert r.raw_text == "Name: John"
         assert r.provider == "tesseract"
@@ -69,6 +77,7 @@ class TestResponseTypes:
 # ---------------------------------------------------------------------------
 # TestLLMProvider
 # ---------------------------------------------------------------------------
+
 
 class TestFixtureProvider:
     def test_name(self):
@@ -82,6 +91,7 @@ class TestFixtureProvider:
         assert resp.provider == "test"
         assert resp.model == "test-provider/fixture"
         import json
+
         parsed = json.loads(resp.content)
         assert "verdict" in parsed
 
@@ -108,6 +118,7 @@ class TestFixtureProvider:
 # ---------------------------------------------------------------------------
 # ProviderRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestProviderRegistry:
     def setup_method(self):
@@ -203,6 +214,7 @@ class TestProviderRegistry:
 # OpenAIProvider / GroqProvider (unit-level, mocked HTTP)
 # ---------------------------------------------------------------------------
 
+
 class TestOpenAIProvider:
     def test_name(self):
         assert OpenAIProvider().name == "openai"
@@ -238,7 +250,9 @@ class TestOpenAIProvider:
             mock_settings.llm_timeout_seconds = 30
 
             with patch("httpx.Client") as MockClient:
-                MockClient.return_value.__enter__ = MagicMock(return_value=mock_client_instance)
+                MockClient.return_value.__enter__ = MagicMock(
+                    return_value=mock_client_instance
+                )
                 MockClient.return_value.__exit__ = MagicMock(return_value=False)
 
                 resp = OpenAIProvider().llm_chat("sys", "usr", model="gpt-4")

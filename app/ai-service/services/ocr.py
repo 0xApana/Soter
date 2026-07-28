@@ -82,19 +82,27 @@ class OCRService:
         self.field_detector = FieldDetector()
         self.registry = registry or ProviderRegistry()
 
-    def process_image(self, image: Image.Image, language_hint: Optional[str] = None) -> OCRResult:
+    def process_image(
+        self, image: Image.Image, language_hint: Optional[str] = None
+    ) -> OCRResult:
         providers = self.registry.resolve_ocr()
         if not providers:
             return OCRResult(fields={}, raw_text="", processing_time_ms=0)
 
         for provider_name, provider in providers:
             try:
-                response: OCRResponse = provider.ocr_extract(image, language_hint=language_hint)
+                response: OCRResponse = provider.ocr_extract(
+                    image, language_hint=language_hint
+                )
                 fields: Dict[str, FieldMatch] = {}
                 for fname, ocr_field in response.fields.items():
-                    fields[fname] = FieldMatch(value=ocr_field.value, confidence=ocr_field.confidence)
+                    fields[fname] = FieldMatch(
+                        value=ocr_field.value, confidence=ocr_field.confidence
+                    )
 
-                metrics.PIPELINE_STEP_LATENCY.labels(step_name='ocr').observe(response.processing_time_ms / 1000.0)
+                metrics.PIPELINE_STEP_LATENCY.labels(step_name="ocr").observe(
+                    response.processing_time_ms / 1000.0
+                )
 
                 return OCRResult(
                     fields=fields,

@@ -33,9 +33,11 @@ logger = logging.getLogger(__name__)
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class LLMResponse:
     """Structured return value from an LLM provider."""
+
     content: str
     provider: str
     model: str
@@ -45,6 +47,7 @@ class LLMResponse:
 @dataclass
 class OCRField:
     """A single detected field from OCR."""
+
     value: str
     confidence: float
 
@@ -52,6 +55,7 @@ class OCRField:
 @dataclass
 class OCRResponse:
     """Structured return value from an OCR provider."""
+
     fields: Dict[str, OCRField]
     raw_text: str
     processing_time_ms: int
@@ -61,6 +65,7 @@ class OCRResponse:
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
+
 
 class ModelProvider(ABC):
     """Base class for all model providers.
@@ -105,6 +110,7 @@ class ModelProvider(ABC):
 # OpenAI provider
 # ---------------------------------------------------------------------------
 
+
 class OpenAIProvider(ModelProvider):
     """LLM provider backed by the OpenAI chat completions API."""
 
@@ -145,7 +151,11 @@ class OpenAIProvider(ModelProvider):
         if settings.ai_deterministic_mode:
             logger.info("Deterministic AI mode enabled: returning stable response")
             stable = json.dumps(
-                {"verdict": "credible", "confidence": 0.74, "summary": "Deterministic verification output for testing"},
+                {
+                    "verdict": "credible",
+                    "confidence": 0.74,
+                    "summary": "Deterministic verification output for testing",
+                },
                 separators=(",", ":"),
                 sort_keys=True,
             )
@@ -163,7 +173,9 @@ class OpenAIProvider(ModelProvider):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        req_timeout = timeout if timeout is not None else float(settings.llm_timeout_seconds)
+        req_timeout = (
+            timeout if timeout is not None else float(settings.llm_timeout_seconds)
+        )
         start = time.time()
 
         try:
@@ -181,7 +193,10 @@ class OpenAIProvider(ModelProvider):
             raise AIServiceError(
                 message=f"LLM request failed with status {exc.response.status_code}",
                 code="AI_PROVIDER_ERROR",
-                details={"provider": provider_name, "status_code": exc.response.status_code},
+                details={
+                    "provider": provider_name,
+                    "status_code": exc.response.status_code,
+                },
             ) from exc
         except Exception as exc:
             raise AIServiceError(
@@ -208,6 +223,7 @@ class OpenAIProvider(ModelProvider):
 # ---------------------------------------------------------------------------
 # Groq provider
 # ---------------------------------------------------------------------------
+
 
 class GroqProvider(ModelProvider):
     """LLM provider backed by the Groq chat completions API."""
@@ -241,6 +257,7 @@ class GroqProvider(ModelProvider):
 # Test / fixture-driven provider (LLM + OCR)
 # ---------------------------------------------------------------------------
 
+
 class FixtureProvider(ModelProvider):
     """Fixture-driven provider for staging/testnet (no API keys).
 
@@ -249,6 +266,7 @@ class FixtureProvider(ModelProvider):
 
     def __init__(self) -> None:
         from services.test_provider import TestProvider
+
         self._inner = TestProvider()
 
     @property
@@ -268,7 +286,9 @@ class FixtureProvider(ModelProvider):
             request_data={"system_prompt": system_prompt, "user_prompt": user_prompt},
         )
         content = json.dumps(response, separators=(",", ":"), sort_keys=True)
-        return LLMResponse(content=content, provider="test", model="test-provider/fixture")
+        return LLMResponse(
+            content=content, provider="test", model="test-provider/fixture"
+        )
 
     def ocr_extract(
         self,
@@ -281,7 +301,9 @@ class FixtureProvider(ModelProvider):
 
         fields: Dict[str, OCRField] = {}
         for fname, fdata in response.get("fields", {}).items():
-            fields[fname] = OCRField(value=fdata["value"], confidence=fdata["confidence"])
+            fields[fname] = OCRField(
+                value=fdata["value"], confidence=fdata["confidence"]
+            )
 
         return OCRResponse(
             fields=fields,
@@ -294,6 +316,7 @@ class FixtureProvider(ModelProvider):
 # ---------------------------------------------------------------------------
 # Tesseract OCR provider
 # ---------------------------------------------------------------------------
+
 
 class TesseractOCRProvider(ModelProvider):
     """OCR provider using local Tesseract via pytesseract."""
@@ -312,7 +335,10 @@ class TesseractOCRProvider(ModelProvider):
 
         start = time.time()
         config = "--psm 6 --oem 3"
-        kwargs: Dict[str, Any] = {"config": config, "output_type": pytesseract.Output.DICT}
+        kwargs: Dict[str, Any] = {
+            "config": config,
+            "output_type": pytesseract.Output.DICT,
+        }
         if language_hint:
             kwargs["lang"] = language_hint
         data = pytesseract.image_to_data(image, **kwargs)
@@ -323,6 +349,7 @@ class TesseractOCRProvider(ModelProvider):
         raw_text = str(raw_text) if raw_text else ""
 
         from services.ocr import FieldDetector
+
         detector = FieldDetector()
         fields_dict = detector.detect_fields(raw_text)
 
@@ -337,7 +364,9 @@ class TesseractOCRProvider(ModelProvider):
         for field_name, field_match in fields_dict.items():
             char_confs: List[float] = []
             for i, text in enumerate(texts_list):
-                if field_match.value.lower() in str(text).lower() and i < len(confs_list):
+                if field_match.value.lower() in str(text).lower() and i < len(
+                    confs_list
+                ):
                     try:
                         conf = float(confs_list[i])
                         if conf > 0:
@@ -345,7 +374,9 @@ class TesseractOCRProvider(ModelProvider):
                     except (ValueError, TypeError):
                         pass
             aggregated = sum(char_confs) / len(char_confs) if char_confs else 0.8
-            fields[field_name] = OCRField(value=field_match.value, confidence=aggregated)
+            fields[field_name] = OCRField(
+                value=field_match.value, confidence=aggregated
+            )
 
         latency_ms = int((time.time() - start) * 1000)
         return OCRResponse(
@@ -359,6 +390,7 @@ class TesseractOCRProvider(ModelProvider):
 # ---------------------------------------------------------------------------
 # Provider Registry
 # ---------------------------------------------------------------------------
+
 
 class ProviderRegistry:
     """Central registry that resolves provider instances by name and capability.

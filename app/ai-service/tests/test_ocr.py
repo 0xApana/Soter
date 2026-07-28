@@ -92,7 +92,7 @@ class TestOCRService:
     def setup_method(self):
         self.ocr = OCRService()
 
-    @patch('metrics.PIPELINE_STEP_LATENCY.labels')
+    @patch("metrics.PIPELINE_STEP_LATENCY.labels")
     def test_process_image_returns_result(self, mock_labels, monkeypatch):
         mock_observe = MagicMock()
         mock_labels.return_value.observe = mock_observe
@@ -121,7 +121,7 @@ class TestOCRService:
         assert isinstance(result.raw_text, str)
         assert result.processing_time_ms >= 0
 
-    @patch('metrics.PIPELINE_STEP_LATENCY.labels')
+    @patch("metrics.PIPELINE_STEP_LATENCY.labels")
     def test_process_image_passes_language_hint(self, mock_labels, monkeypatch):
         mock_observe = MagicMock()
         mock_labels.return_value.observe = mock_observe
@@ -145,7 +145,9 @@ class TestOCRService:
                 )
 
         mock_registry = MagicMock(spec=ProviderRegistry)
-        mock_registry.resolve_ocr.return_value = [("hint_capture", HintCapturingProvider())]
+        mock_registry.resolve_ocr.return_value = [
+            ("hint_capture", HintCapturingProvider())
+        ]
         monkeypatch.setattr(self.ocr, "registry", mock_registry)
 
         img = Image.new("RGB", (200, 100), color="white")

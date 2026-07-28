@@ -13,28 +13,28 @@ from config import settings
 def test_circuit_breaker_basic_transitions():
     # Set a short recovery timeout for fast testing
     breaker = CircuitBreaker("test-provider", failure_threshold=2, recovery_timeout=0.1)
-    
+
     # 1. Starts CLOSED
     assert breaker.state == "CLOSED"
     assert breaker.allow_request() is True
-    
+
     # 2. First failure
     breaker.record_failure()
     assert breaker.state == "CLOSED"  # Not tripped yet
     assert breaker.allow_request() is True
-    
+
     # 3. Second failure (reaches threshold)
     breaker.record_failure()
     assert breaker.state == "OPEN"
     assert breaker.allow_request() is False  # Tripped
-    
+
     # 4. Wait for recovery timeout
     time.sleep(0.12)
-    
+
     # 5. Transitions to HALF_OPEN on allow_request check
     assert breaker.allow_request() is True
     assert breaker.state == "HALF_OPEN"
-    
+
     # 6. Success closes the circuit
     breaker.record_success()
     assert breaker.state == "CLOSED"
@@ -43,17 +43,17 @@ def test_circuit_breaker_basic_transitions():
 
 def test_circuit_breaker_half_open_failure():
     breaker = CircuitBreaker("test-provider", failure_threshold=2, recovery_timeout=0.1)
-    
+
     # Trip the breaker
     breaker.record_failure()
     breaker.record_failure()
     assert breaker.state == "OPEN"
-    
+
     # Wait for recovery timeout
     time.sleep(0.12)
     assert breaker.allow_request() is True
     assert breaker.state == "HALF_OPEN"
-    
+
     # Failure in HALF_OPEN trips it immediately to OPEN
     breaker.record_failure()
     assert breaker.state == "OPEN"
@@ -73,18 +73,25 @@ class TestHumanitarianVerificationServiceCircuitBreaker:
         mock_openai = MagicMock(spec=ModelProvider)
         mock_openai.llm_chat.return_value = LLMResponse(
             content='{"verdict":"credible","confidence":0.8,"summary":"test"}',
-            provider="openai", model="test-model",
+            provider="openai",
+            model="test-model",
         )
         mock_groq = MagicMock(spec=ModelProvider)
         mock_groq.llm_chat.return_value = LLMResponse(
             content='{"verdict":"credible","confidence":0.8,"summary":"test"}',
-            provider="groq", model="test-model",
+            provider="groq",
+            model="test-model",
         )
 
         mock_registry = MagicMock(spec=ProviderRegistry)
-        mock_registry.resolve_llm.return_value = [("openai", mock_openai), ("groq", mock_groq)]
+        mock_registry.resolve_llm.return_value = [
+            ("openai", mock_openai),
+            ("groq", mock_groq),
+        ]
         monkeypatch.setattr(self.service, "registry", mock_registry)
-        monkeypatch.setattr(self.service, "_get_model_for_provider", lambda p: "test-model")
+        monkeypatch.setattr(
+            self.service, "_get_model_for_provider", lambda p: "test-model"
+        )
 
         openai_breaker = self.service._get_breaker("openai")
         openai_breaker.failure_threshold = 2
@@ -119,7 +126,9 @@ class TestHumanitarianVerificationServiceCircuitBreaker:
         mock_registry = MagicMock(spec=ProviderRegistry)
         mock_registry.resolve_llm.return_value = [("openai", mock_openai)]
         monkeypatch.setattr(self.service, "registry", mock_registry)
-        monkeypatch.setattr(self.service, "_get_model_for_provider", lambda p: "test-model")
+        monkeypatch.setattr(
+            self.service, "_get_model_for_provider", lambda p: "test-model"
+        )
 
         with pytest.raises(RuntimeError) as exc_info:
             self.service.verify_claim(
@@ -136,7 +145,9 @@ class TestHumanitarianVerificationServiceCircuitBreaker:
         breaker = self.service._get_breaker("openai")
         assert breaker.failure_count == 2
 
-    def test_all_providers_unavailable_false_without_configured_providers(self, monkeypatch):
+    def test_all_providers_unavailable_false_without_configured_providers(
+        self, monkeypatch
+    ):
         monkeypatch.setattr(settings, "openai_api_key", None)
         monkeypatch.setattr(settings, "groq_api_key", None)
         monkeypatch.setattr(settings, "test_provider_mode", False)

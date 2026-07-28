@@ -57,19 +57,29 @@ class HumanitarianVerificationService:
 
             providers = self.registry.resolve_llm(provider_preference)
             if not providers:
-                raise RuntimeError("No LLM providers configured for humanitarian verification")
+                raise RuntimeError(
+                    "No LLM providers configured for humanitarian verification"
+                )
 
             errors: List[str] = []
 
             for provider_name, provider in providers:
                 breaker = self._get_breaker(provider_name)
                 if not breaker.allow_request():
-                    logger.warning("Circuit breaker is OPEN for provider=%s. Skipping.", provider_name)
-                    errors.append(f"provider={provider_name}, error=Circuit breaker is OPEN")
+                    logger.warning(
+                        "Circuit breaker is OPEN for provider=%s. Skipping.",
+                        provider_name,
+                    )
+                    errors.append(
+                        f"provider={provider_name}, error=Circuit breaker is OPEN"
+                    )
                     continue
 
                 model = self._get_model_for_provider(provider_name)
-                for prompt_variant, prompt in (("primary", primary_prompt), ("fallback", fallback_prompt)):
+                for prompt_variant, prompt in (
+                    ("primary", primary_prompt),
+                    ("fallback", fallback_prompt),
+                ):
                     try:
                         logger.info(
                             "Attempting humanitarian verification with provider=%s model=%s prompt=%s",
@@ -96,12 +106,16 @@ class HumanitarianVerificationService:
                         breaker.record_failure()
                         err = f"provider={provider_name}, model={model}, prompt={prompt_variant}, error={exc}"
                         errors.append(err)
-                        logger.warning("Humanitarian verification attempt failed: %s", err)
+                        logger.warning(
+                            "Humanitarian verification attempt failed: %s", err
+                        )
 
-            raise RuntimeError("All humanitarian verification attempts failed: " + " | ".join(errors))
+            raise RuntimeError(
+                "All humanitarian verification attempts failed: " + " | ".join(errors)
+            )
         finally:
             latency = time.time() - start_time
-            metrics.PIPELINE_STEP_LATENCY.labels(step_name='verify').observe(latency)
+            metrics.PIPELINE_STEP_LATENCY.labels(step_name="verify").observe(latency)
 
     def all_providers_unavailable(self) -> bool:
         """Return True when every configured LLM provider circuit is open."""
@@ -112,10 +126,7 @@ class HumanitarianVerificationService:
         if not providers:
             return False
 
-        return all(
-            not self._get_breaker(p).allow_request()
-            for p in providers
-        )
+        return all(not self._get_breaker(p).allow_request() for p in providers)
 
     def get_model_version(self, provider_preference: str = "auto") -> str:
         providers = self.registry.resolve_llm(provider_preference)
