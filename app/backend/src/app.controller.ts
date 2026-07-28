@@ -1,4 +1,4 @@
-import { Controller, Get, Version, Query } from '@nestjs/common';
+import { Controller, Get, Version } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { API_VERSIONS } from './common/constants/api-version.constants';
