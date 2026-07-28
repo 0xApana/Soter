@@ -40,6 +40,7 @@ const KEY_PAUSE_CREATE: Symbol = symbol_short!("p_create");
 const KEY_PAUSE_CLAIM: Symbol = symbol_short!("p_claim");
 const KEY_PAUSE_WITHDRAW: Symbol = symbol_short!("p_wdrw");
 const KEY_TOTAL_CLAIMED: Symbol = symbol_short!("claimed"); // Map<Address, i128>
+const KEY_PENDING_ADMIN: Symbol = symbol_short!("pend_adm");
 const META_MERKLE_ROOT_KEY: &str = "merkle_root";
 
 // --- Data Types ---
@@ -107,6 +108,8 @@ pub enum Error {
     InvalidProof = 16,
     InvalidToken = 17,
     TokenTransferFailed = 18,
+    NoPendingTransfer = 19,
+    InvalidPendingAdmin = 20,
 }
 
 // --- Contract Events (indexer-friendly; stable topics & payloads) ---
@@ -245,6 +248,28 @@ pub struct DelegateClaimed {
     pub timestamp: u64,
 }
 
+/// Emitted when the current admin nominates a pending admin.
+#[contractevent]
+pub struct AdminTransferInitiated {
+    pub admin: Address,
+    pub pending_admin: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when the pending admin accepts the admin role.
+#[contractevent]
+pub struct AdminTransferAccepted {
+    pub admin: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when the current admin cancels a pending admin transfer.
+#[contractevent]
+pub struct AdminTransferCancelled {
+    pub admin: Address,
+    pub timestamp: u64,
+}
+
 #[contract]
 pub struct AidEscrow;
 
@@ -283,6 +308,92 @@ impl AidEscrow {
             .instance()
             .get(&KEY_ADMIN)
             .ok_or(Error::NotInitialized)
+    }
+
+    /// Returns the pending admin address, if one has been nominated.
+    ///
+    /// Returns `None` if no transfer is in progress.
+    pub fn get_pending_admin(env: Env) -> Option<Address> {
+        env.storage().instance().get(&KEY_PENDING_ADMIN)
+    }
+
+    /// Admin-only. Nominates `new_admin` as the pending administrator.
+    /// The current admin must explicitly call this to initiate a transfer.
+    /// The pending admin must then call `accept_admin()` to complete it.
+    ///
+    /// # Arguments
+    /// * `new_admin` — The address to nominate as the next admin.
+    ///
+    /// # Errors
+    /// Returns `Error::NotInitialized` if the contract has not been initialized.
+    /// Returns `Error::InvalidPendingAdmin` if `new_admin` equals the current admin.
+    pub fn transfer_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        if new_admin == admin {
+            return Err(Error::InvalidPendingAdmin);
+        }
+
+        env.storage().instance().set(&KEY_PENDING_ADMIN, &new_admin);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferInitiated {
+            admin,
+            pending_admin: new_admin,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Pending admin-only. Accepts the admin role and completes the transfer.
+    /// Only the address nominated via `transfer_admin()` may call this.
+    ///
+    /// # Errors
+    /// Returns `Error::NoPendingTransfer` if no transfer is in progress.
+    /// Returns `Error::NotAuthorized` if the caller is not the pending admin.
+    pub fn accept_admin(env: Env) -> Result<(), Error> {
+        let pending_admin: Address = env
+            .storage()
+            .instance()
+            .get(&KEY_PENDING_ADMIN)
+            .ok_or(Error::NoPendingTransfer)?;
+
+        pending_admin.require_auth();
+
+        env.storage().instance().set(&KEY_ADMIN, &pending_admin);
+        env.storage().instance().remove(&KEY_PENDING_ADMIN);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferAccepted {
+            admin: pending_admin,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Admin-only. Cancels a pending admin transfer.
+    ///
+    /// # Errors
+    /// Returns `Error::NoPendingTransfer` if no transfer is in progress.
+    pub fn cancel_admin_transfer(env: Env) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        if !env.storage().instance().has(&KEY_PENDING_ADMIN) {
+            return Err(Error::NoPendingTransfer);
+        }
+
+        env.storage().instance().remove(&KEY_PENDING_ADMIN);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferCancelled { admin, timestamp }.publish(&env);
+
+        Ok(())
     }
 
     /// Returns the current contract version.
