@@ -117,6 +117,9 @@ export class ClaimsService {
       tokenAddress: createClaimDto.tokenAddress,
     });
 
+    this.metricsService.incrementClaimsCreated(campaign.id);
+    this.metricsService.adjustClaimsInFunnel('requested', 1);
+
     return claim;
   }
 
@@ -307,6 +310,7 @@ export class ClaimsService {
   async handleExpiredClaimsCron(): Promise<void> {
     try {
       await this.cleanupExpiredClaims();
+      await this.refreshFunnelGauges();
     } catch (error) {
       this.logger.error(
         'Failed to clean up expired claims',
@@ -370,6 +374,31 @@ export class ClaimsService {
       processed: expiredClaims.length,
       archived,
     };
+  }
+
+  async refreshFunnelGauges(): Promise<void> {
+    const statuses = [
+      ClaimStatus.requested,
+      ClaimStatus.verified,
+      ClaimStatus.approved,
+      ClaimStatus.disbursed,
+      ClaimStatus.archived,
+      ClaimStatus.cancelled,
+    ];
+
+    const counts = await Promise.all(
+      statuses.map(status =>
+        this.prisma.claim
+          .count({
+            where: { status, deletedAt: null },
+          })
+          .then(count => ({ status, count })),
+      ),
+    );
+
+    for (const { status, count } of counts) {
+      this.metricsService.setClaimsInFunnel(status, count);
+    }
   }
 
   private async cleanupExpiredClaimOnchain(claimId: string): Promise<{
@@ -449,6 +478,29 @@ export class ClaimsService {
 
       return updated;
     });
+
+    const durationSeconds = (Date.now() - claim.updatedAt.getTime()) / 1000;
+
+    const campaignId = claim.campaignId;
+
+    if (toStatus === ClaimStatus.verified) {
+      this.metricsService.incrementClaimsVerified(campaignId);
+    } else if (toStatus === ClaimStatus.approved) {
+      this.metricsService.incrementClaimsApproved(campaignId);
+    } else if (toStatus === ClaimStatus.disbursed) {
+      this.metricsService.incrementClaimsDisbursed(
+        campaignId,
+        this.onchainEnabled ?? false,
+      );
+    }
+
+    this.metricsService.recordClaimFunnelDuration(
+      fromStatus,
+      toStatus,
+      durationSeconds,
+    );
+    this.metricsService.adjustClaimsInFunnel(fromStatus, -1);
+    this.metricsService.adjustClaimsInFunnel(toStatus, 1);
 
     return updatedClaim;
   }
@@ -551,7 +603,7 @@ export class ClaimsService {
     const txInfo = await this.findDisbursementTransaction(claim.id);
     const transactionHash = txInfo?.transactionHash;
     const explorerLink = transactionHash
-      ? this.buildExplorerLink(transactionHash) ?? undefined
+      ? (this.buildExplorerLink(transactionHash) ?? undefined)
       : undefined;
 
     return {

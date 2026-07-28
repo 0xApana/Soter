@@ -1,13 +1,12 @@
-import {
-  Injectable,
-  Logger,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SessionService } from 'src/session/session.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AiVerificationPayloadDto } from 'src/ai-verification.dto';
 import { Prisma } from '@prisma/client';
+import {
+  AppException,
+  INTEGRATION_ERROR_CODES,
+} from './common/constants/integration-error-codes';
 
 @Injectable()
 export class WebhooksService {
@@ -28,13 +27,23 @@ export class WebhooksService {
 
     if (existingEvent) {
       this.logger.log(`Webhook event ${eventId} already processed. Skipping.`);
-      throw new ConflictException('Event already processed');
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT,
+        409,
+        'Event already processed',
+        { eventId },
+      );
     }
 
     // 2. Find the relevant session and step
     const session = await this.sessionService.getSession(sessionId);
     if (!session || session.status !== 'pending') {
-      throw new NotFoundException(`Active session ${sessionId} not found.`);
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.WEBHOOK_SESSION_NOT_FOUND,
+        404,
+        `Active session ${sessionId} not found.`,
+        { sessionId },
+      );
     }
 
     // Optional chaining prevents compilation failures if session.steps is missing
@@ -45,8 +54,11 @@ export class WebhooksService {
     );
 
     if (!verificationStep) {
-      throw new NotFoundException(
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.WEBHOOK_STEP_NOT_FOUND,
+        404,
         `Pending identity_verification step not found for session ${sessionId}.`,
+        { sessionId },
       );
     }
 
