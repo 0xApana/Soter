@@ -43,6 +43,7 @@ import { InvitesModule } from './orgs/invites.module';
 import { AdminSearchModule } from './search/admin-search.module';
 import { EntityLinkingModule } from './entity-linking/entity-linking.module';
 import { DeploymentMetadataModule } from './deployment-metadata/deployment-metadata.module';
+import { ReleaseConfigModule } from './release-config/release-config.module';
 import { RedisModule } from './redis/redis.module';
 import { AdaptiveRateLimitGuard } from './common/guards/adaptive-rate-limit.guard';
 import { DeprecationInterceptor } from './common/interceptors/deprecation.interceptor';
@@ -123,6 +124,7 @@ import { DeviceTokensModule } from './device-tokens/device-tokens.module';
     AdminSearchModule,
     EntityLinkingModule,
     DeploymentMetadataModule,
+    ReleaseConfigModule,
     SandboxModule,
     WebhooksModule,
     CorrelationModule,
