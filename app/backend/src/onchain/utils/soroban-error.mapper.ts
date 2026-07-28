@@ -15,24 +15,96 @@ export class SorobanErrorMapper {
     number,
     { code: number; message: string; errorCode: string }
   > = {
-    1: { code: 400, message: 'Escrow not initialized', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    2: { code: 409, message: 'Escrow already initialized', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    3: { code: 403, message: 'Not authorized to perform this action', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_NOT_AUTHORIZED },
-    4: { code: 400, message: 'Invalid amount', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    5: { code: 404, message: 'Package not found', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_NOT_FOUND },
-    6: { code: 400, message: 'Package is not active', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-    7: { code: 410, message: 'Package has expired', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_EXPIRED },
-    8: { code: 400, message: 'Package has not expired', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-    9: { code: 400, message: 'Insufficient funds in escrow', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS },
-    10: { code: 409, message: 'Package ID already exists', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    11: { code: 400, message: 'Invalid state transition', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-    12: { code: 400, message: 'Recipients and amounts arrays have different lengths', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    13: { code: 400, message: 'Insufficient surplus funds', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS },
-    14: { code: 503, message: 'Contract is paused', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_PAUSED },
-    15: { code: 400, message: 'Claim window has not started', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-    16: { code: 400, message: 'Invalid claim proof', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    17: { code: 400, message: 'Invalid token contract address', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-    18: { code: 502, message: 'Token transfer failed', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_TOKEN_TRANSFER_FAILED },
+    1: {
+      code: 400,
+      message: 'Escrow not initialized',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    2: {
+      code: 409,
+      message: 'Escrow already initialized',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    3: {
+      code: 403,
+      message: 'Not authorized to perform this action',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_NOT_AUTHORIZED,
+    },
+    4: {
+      code: 400,
+      message: 'Invalid amount',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    5: {
+      code: 404,
+      message: 'Package not found',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_NOT_FOUND,
+    },
+    6: {
+      code: 400,
+      message: 'Package is not active',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+    },
+    7: {
+      code: 410,
+      message: 'Package has expired',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_EXPIRED,
+    },
+    8: {
+      code: 400,
+      message: 'Package has not expired',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+    },
+    9: {
+      code: 400,
+      message: 'Insufficient funds in escrow',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
+    },
+    10: {
+      code: 409,
+      message: 'Package ID already exists',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    11: {
+      code: 400,
+      message: 'Invalid state transition',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+    },
+    12: {
+      code: 400,
+      message: 'Recipients and amounts arrays have different lengths',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    13: {
+      code: 400,
+      message: 'Insufficient surplus funds',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
+    },
+    14: {
+      code: 503,
+      message: 'Contract is paused',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_PAUSED,
+    },
+    15: {
+      code: 400,
+      message: 'Claim window has not started',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+    },
+    16: {
+      code: 400,
+      message: 'Invalid claim proof',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    17: {
+      code: 400,
+      message: 'Invalid token contract address',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+    },
+    18: {
+      code: 502,
+      message: 'Token transfer failed',
+      errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_TOKEN_TRANSFER_FAILED,
+    },
   };
 
   /**
@@ -225,25 +297,100 @@ export class SorobanErrorMapper {
     errorCode: string;
     details?: Record<string, unknown>;
   } {
-    const errorMap: Record<string, { code: number; message: string; errorCode: string }> = {
-      NotInitialized: { code: 400, message: 'Escrow not initialized', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      AlreadyInitialized: { code: 409, message: 'Escrow already initialized', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      NotAuthorized: { code: 403, message: 'Not authorized to perform this action', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_NOT_AUTHORIZED },
-      InvalidAmount: { code: 400, message: 'Invalid amount', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      PackageNotFound: { code: 404, message: 'Package not found', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_NOT_FOUND },
-      PackageNotActive: { code: 400, message: 'Package is not active', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-      PackageExpired: { code: 410, message: 'Package has expired', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_EXPIRED },
-      PackageNotExpired: { code: 400, message: 'Package has not expired', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-      InsufficientFunds: { code: 400, message: 'Insufficient funds in escrow', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS },
-      PackageIdExists: { code: 409, message: 'Package ID already exists', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      InvalidState: { code: 400, message: 'Invalid state transition', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-      MismatchedArrays: { code: 400, message: 'Recipients and amounts arrays have different lengths', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      InsufficientSurplus: { code: 400, message: 'Insufficient surplus funds', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS },
-      ContractPaused: { code: 503, message: 'Contract is paused', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_PAUSED },
-      ClaimTooEarly: { code: 400, message: 'Claim window has not started', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE },
-      InvalidProof: { code: 400, message: 'Invalid claim proof', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      InvalidToken: { code: 400, message: 'Invalid token contract address', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR },
-      TokenTransferFailed: { code: 502, message: 'Token transfer failed', errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_TOKEN_TRANSFER_FAILED },
+    const errorMap: Record<
+      string,
+      { code: number; message: string; errorCode: string }
+    > = {
+      NotInitialized: {
+        code: 400,
+        message: 'Escrow not initialized',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      AlreadyInitialized: {
+        code: 409,
+        message: 'Escrow already initialized',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      NotAuthorized: {
+        code: 403,
+        message: 'Not authorized to perform this action',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_NOT_AUTHORIZED,
+      },
+      InvalidAmount: {
+        code: 400,
+        message: 'Invalid amount',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      PackageNotFound: {
+        code: 404,
+        message: 'Package not found',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_NOT_FOUND,
+      },
+      PackageNotActive: {
+        code: 400,
+        message: 'Package is not active',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+      },
+      PackageExpired: {
+        code: 410,
+        message: 'Package has expired',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_EXPIRED,
+      },
+      PackageNotExpired: {
+        code: 400,
+        message: 'Package has not expired',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+      },
+      InsufficientFunds: {
+        code: 400,
+        message: 'Insufficient funds in escrow',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
+      },
+      PackageIdExists: {
+        code: 409,
+        message: 'Package ID already exists',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      InvalidState: {
+        code: 400,
+        message: 'Invalid state transition',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+      },
+      MismatchedArrays: {
+        code: 400,
+        message: 'Recipients and amounts arrays have different lengths',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      InsufficientSurplus: {
+        code: 400,
+        message: 'Insufficient surplus funds',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
+      },
+      ContractPaused: {
+        code: 503,
+        message: 'Contract is paused',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_PAUSED,
+      },
+      ClaimTooEarly: {
+        code: 400,
+        message: 'Claim window has not started',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
+      },
+      InvalidProof: {
+        code: 400,
+        message: 'Invalid claim proof',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      InvalidToken: {
+        code: 400,
+        message: 'Invalid token contract address',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
+      },
+      TokenTransferFailed: {
+        code: 502,
+        message: 'Token transfer failed',
+        errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_TOKEN_TRANSFER_FAILED,
+      },
     };
 
     for (const [errorKey, errorInfo] of Object.entries(errorMap)) {
