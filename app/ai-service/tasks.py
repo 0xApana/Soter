@@ -151,9 +151,9 @@ def send_webhook_notification(task_id: str, status: str, result: Any = None, err
     transitions to a terminal state.
 
     The payload is serialised using :class:`~schemas.callback.AiCallbackPayload`
-    (the canonical contract) and signed with HMAC-SHA256 if ``WEBHOOK_SECRET``
+    (the canonical contract) and signed with HMAC-SHA256 if ``AI_WEBHOOK_SECRET``
     is configured.  The resulting signature is sent in the
-    ``x-webhook-signature`` header, matching what :class:`WebhookHmacGuard`
+    ``X-Signature-256`` header, matching what :class:`WebhookHmacGuard`
     on the backend expects.
 
     Args:
@@ -180,12 +180,12 @@ def send_webhook_notification(task_id: str, status: str, result: Any = None, err
     body_bytes = payload.to_json_bytes()
     headers: dict = {"Content-Type": "application/json"}
 
-    if settings.webhook_secret:
-        headers["x-webhook-signature"] = payload.sign(settings.webhook_secret)
+    if settings.ai_webhook_secret:
+        headers["X-Signature-256"] = payload.sign(settings.ai_webhook_secret)
     else:
         logger.warning(
-            "WEBHOOK_SECRET not configured — sending unsigned webhook for task %s. "
-            "Set WEBHOOK_SECRET in .env to enable HMAC verification.",
+            "AI_WEBHOOK_SECRET not configured — sending unsigned webhook for task %s. "
+            "Set AI_WEBHOOK_SECRET in .env to enable HMAC verification.",
             task_id,
         )
 
@@ -222,7 +222,7 @@ def deliver_webhook(body_bytes: bytes, headers: Dict[str, str]) -> None:
     """
     with httpx.Client(timeout=10.0) as client:
         response = client.post(
-            settings.backend_webhook_url,
+            str(settings.backend_webhook_url),
             content=body_bytes,
             headers=headers,
         )
@@ -256,8 +256,8 @@ def replay_callback_delivery(task_id: str, payload: Dict[str, Any]) -> None:
 
     body_bytes = callback_payload.to_json_bytes()
     headers: Dict[str, str] = {"Content-Type": "application/json"}
-    if settings.webhook_secret:
-        headers["x-webhook-signature"] = callback_payload.sign(settings.webhook_secret)
+    if settings.ai_webhook_secret:
+        headers["X-Signature-256"] = callback_payload.sign(settings.ai_webhook_secret)
 
     deliver_webhook(body_bytes, headers)
 

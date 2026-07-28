@@ -22,10 +22,10 @@ Field alignment with AiTaskWebhookDto (backend):
   schema_version    <->  (informational — backend ignores unknown fields)
 
 HMAC header:
-  Header name : x-webhook-signature
+  Header name : X-Signature-256
   Algorithm   : HMAC-SHA256 over the raw JSON body (UTF-8)
   Encoding    : lowercase hex digest
-  Secret      : WEBHOOK_SECRET env var (must match backend WEBHOOK_SECRET)
+  Secret      : AI_WEBHOOK_SECRET env var (must match backend AI_WEBHOOK_SECRET)
 """
 
 from __future__ import annotations
