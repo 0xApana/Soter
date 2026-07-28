@@ -4,6 +4,19 @@ from pydantic import BaseModel, Field
 from schemas.common import AnchorMetadata
 
 
+class BatchOCRDocumentStatus(BaseModel):
+    filename: str | None = None
+    status: str
+    task_id: str | None = None
+    status_url: str | None = None
+    error: dict[str, str] | None = None
+
+
+class BatchOCRResponse(BaseModel):
+    success: bool = Field(examples=[True])
+    documents: list[BatchOCRDocumentStatus]
+
+
 class LanguageHint(str, Enum):
     eng = "eng"
     spa = "spa"
