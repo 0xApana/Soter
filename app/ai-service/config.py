@@ -4,7 +4,7 @@ Handles environment variables and API key management
 """
 
 from typing import Literal, Optional
-from pydantic import model_validator
+from pydantic import model_validator, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
 import os
@@ -80,12 +80,12 @@ class Settings(BaseSettings):
     task_retry_delay_seconds: int = 30
 
     # Backend webhook URL for notifications
-    backend_webhook_url: Optional[str] = "http://localhost:3001/ai/webhook"
+    backend_webhook_url: Optional[HttpUrl] = "http://localhost:3000/api/v1/webhooks/ai-verification"
 
     # Shared HMAC secret for signing outbound webhook payloads.
-    # Must match WEBHOOK_SECRET on the NestJS backend.
+    # Must match AI_WEBHOOK_SECRET on the NestJS backend.
     # If unset, webhook calls are sent unsigned (development only).
-    webhook_secret: Optional[str] = None
+    ai_webhook_secret: Optional[str] = None
 
     # Proof-of-life settings
     proof_of_life_confidence_threshold: float = 0.65
