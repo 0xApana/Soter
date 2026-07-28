@@ -87,8 +87,13 @@ export class ReleaseConfigService {
       latestVersion: mergedConfig.latestVersion,
       minRequiredVersion: mergedConfig.minRequiredVersion,
       forceUpgrade: mergedConfig.forceUpgrade,
-      releaseNotes: mergedConfig.releaseNotes,
-      forceUpgradeScreen: mergedConfig.forceUpgradeScreen,
+      releaseNotes: {
+        ...mergedConfig.releaseNotes,
+        changes: [...mergedConfig.releaseNotes.changes],
+      },
+      forceUpgradeScreen: {
+        ...mergedConfig.forceUpgradeScreen,
+      },
       storeUrl: {
         ios: platform === 'android' ? '' : mergedConfig.storeUrl.ios,
         android: platform === 'ios' ? '' : mergedConfig.storeUrl.android,
