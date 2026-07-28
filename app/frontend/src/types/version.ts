@@ -19,7 +19,7 @@ export interface VersionState {
   releaseNotes: ReleaseNote | null;
   lastSeenVersion: string | null;
   shouldShowReleaseNotes: boolean;
-  setLastSeenVersion: (version: string) => void;
+  setLastSeenVersion: (version: string | null) => void;
   setShouldShowReleaseNotes: (show: boolean) => void;
   setVersionConfig: (config: VersionConfig) => void;
 }

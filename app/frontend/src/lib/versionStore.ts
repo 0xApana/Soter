@@ -28,7 +28,7 @@ export const useVersionStore = create<VersionState>()(
       lastSeenVersion: null,
       shouldShowReleaseNotes: false,
 
-      setLastSeenVersion: (version: string) => {
+      setLastSeenVersion: (version: string | null) => {
         set({ lastSeenVersion: version });
       },
 
