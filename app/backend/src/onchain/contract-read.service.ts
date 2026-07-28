@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ONCHAIN_ADAPTER_TOKEN, OnchainAdapter } from './onchain.adapter';
 
 export interface ContractReadAdapter {
