@@ -43,7 +43,7 @@ import { InvitesModule } from './orgs/invites.module';
 import { AdminSearchModule } from './search/admin-search.module';
 import { EntityLinkingModule } from './entity-linking/entity-linking.module';
 import { DeploymentMetadataModule } from './deployment-metadata/deployment-metadata.module';
-import { RedisModule } from '@liaoliaots/nestjs-redis';
+import { RedisModule } from './redis/redis.module';
 import { AdaptiveRateLimitGuard } from './common/guards/adaptive-rate-limit.guard';
 import { DeprecationInterceptor } from './common/interceptors/deprecation.interceptor';
 import { SandboxModule } from './sandbox/sandbox.module';
@@ -126,18 +126,9 @@ import { DeviceTokensModule } from './device-tokens/device-tokens.module';
     SandboxModule,
     WebhooksModule,
     CorrelationModule,
+    RedisModule,
     RecipientImportModule,
     DeviceTokensModule,
-    RedisModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        config: {
-          host: configService.get<string>('REDIS_HOST') ?? 'localhost',
-          port: parseInt(configService.get<string>('REDIS_PORT') ?? '6379', 10),
-        },
-      }),
-      inject: [ConfigService],
-    }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
