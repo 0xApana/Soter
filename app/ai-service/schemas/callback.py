@@ -49,6 +49,7 @@ SCHEMA_VERSION = "1.0"
 
 class CallbackStatus(str, Enum):
     """Mirrors TaskStatus in the backend DTO."""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -163,7 +164,9 @@ class AiCallbackPayload(BaseModel):
             task_type=task_type,
             result=result,
             error=error,
-            completed_at=now_iso if CallbackStatus(status) == CallbackStatus.COMPLETED else None,
+            completed_at=(
+                now_iso if CallbackStatus(status) == CallbackStatus.COMPLETED else None
+            ),
         )
 
     # ── Wire serialisation ────────────────────────────────────────────────
@@ -190,6 +193,7 @@ class AiCallbackPayload(BaseModel):
 # ---------------------------------------------------------------------------
 # HMAC helpers (standalone, for callers that already have the raw bytes)
 # ---------------------------------------------------------------------------
+
 
 def compute_hmac(body_bytes: bytes, secret: str) -> str:
     """Return hex HMAC-SHA256 of *body_bytes* signed with *secret*."""

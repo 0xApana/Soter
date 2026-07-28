@@ -64,7 +64,9 @@ class Settings(BaseSettings):
     # Cache TTL settings (in seconds)
     cache_ttl_task_status: int = 30  # Short TTL for responsive polling
     cache_ttl_artifact_access: int = 60  # 1 minute for artifact metadata
-    cache_ttl_verification: int = 120  # AI verification responses, keyed by claim/artifact/model version
+    cache_ttl_verification: int = (
+        120  # AI verification responses, keyed by claim/artifact/model version
+    )
 
     # Application settings
     app_env: Literal["development", "staging", "production", "test"] = "development"
@@ -113,13 +115,17 @@ class Settings(BaseSettings):
         if self.app_env == "staging":
             self.request_rate_limit = "5/minute"
             self.ai_deterministic_mode = True
-            if not (self.openai_api_key or self.groq_api_key or self.test_provider_mode):
+            if not (
+                self.openai_api_key or self.groq_api_key or self.test_provider_mode
+            ):
                 self.test_provider_mode = True
 
         if self.app_env == "test":
             self.request_rate_limit = "5/minute"
             self.ai_deterministic_mode = True
-            if not (self.openai_api_key or self.groq_api_key or self.test_provider_mode):
+            if not (
+                self.openai_api_key or self.groq_api_key or self.test_provider_mode
+            ):
                 self.test_provider_mode = True
 
         if self.app_env == "production":
@@ -127,7 +133,9 @@ class Settings(BaseSettings):
                 self.log_level = "WARNING"
             if self.request_rate_limit == "10/minute":
                 self.request_rate_limit = "20/minute"
-            if not (self.openai_api_key or self.groq_api_key or self.test_provider_mode):
+            if not (
+                self.openai_api_key or self.groq_api_key or self.test_provider_mode
+            ):
                 raise ValueError(
                     "Production environment requires OPENAI_API_KEY, GROQ_API_KEY, or TEST_PROVIDER_MODE=true"
                 )
@@ -135,7 +143,9 @@ class Settings(BaseSettings):
         return self
 
     def validate_api_keys(self) -> bool:
-        has_key = bool(self.openai_api_key or self.groq_api_key or self.test_provider_mode)
+        has_key = bool(
+            self.openai_api_key or self.groq_api_key or self.test_provider_mode
+        )
         if not has_key:
             logger.warning("No API keys configured. AI features will be unavailable.")
         return has_key
@@ -164,7 +174,11 @@ class Settings(BaseSettings):
         # Add production origins
         if self.cors_allowed_origins:
             origins.extend(
-                [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+                [
+                    origin.strip()
+                    for origin in self.cors_allowed_origins.split(",")
+                    if origin.strip()
+                ]
             )
 
         # Add Vercel preview pattern if enabled
@@ -175,12 +189,22 @@ class Settings(BaseSettings):
         # Add custom origins
         if self.cors_custom_origins:
             origins.extend(
-                [origin.strip() for origin in self.cors_custom_origins.split(",") if origin.strip()]
+                [
+                    origin.strip()
+                    for origin in self.cors_custom_origins.split(",")
+                    if origin.strip()
+                ]
             )
 
         # Always allow localhost for development
         if self.app_env == "development":
-            origins.extend(["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"])
+            origins.extend(
+                [
+                    "http://localhost:3000",
+                    "http://localhost:3001",
+                    "http://127.0.0.1:3000",
+                ]
+            )
 
         return origins
 
@@ -202,8 +226,9 @@ class Settings(BaseSettings):
         for allowed in allowed_origins:
             # Handle wildcard patterns (e.g., https://*.vercel.app)
             if "*" in allowed:
-                pattern = allowed.replace("*", "[^\"]*")
+                pattern = allowed.replace("*", '[^"]*')
                 import re
+
                 if re.match(f"^{pattern}$", origin):
                     return True
             # Exact match

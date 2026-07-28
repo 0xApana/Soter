@@ -558,3 +558,93 @@ mod token_decimal_normalization {
         assert!(result.is_ok());
     }
 }
+
+// ===========================================================================
+// transfer_admin / accept_admin / cancel — Two-step admin handover
+// ===========================================================================
+
+mod admin_transfer {
+    use super::*;
+    use aid_escrow::Error;
+
+    #[test]
+    fn nominate_and_accept_transfers_admin() {
+        let t = TestSetup::new();
+        let new_admin = Address::generate(&t.env);
+
+        t.client.transfer_admin(&new_admin);
+        assert_eq!(t.client.get_pending_admin(), Some(new_admin.clone()));
+
+        t.client.accept_admin();
+        assert_eq!(t.client.get_admin(), new_admin);
+        assert_eq!(t.client.get_pending_admin(), None);
+    }
+
+    #[test]
+    fn new_admin_is_reflected_after_accept() {
+        let t = TestSetup::new();
+        let new_admin = Address::generate(&t.env);
+
+        t.client.transfer_admin(&new_admin);
+        t.client.accept_admin();
+
+        assert_eq!(t.client.get_admin(), new_admin);
+        assert_eq!(t.client.get_pending_admin(), None);
+    }
+
+    #[test]
+    fn cancel_removes_pending_admin() {
+        let t = TestSetup::new();
+        let new_admin = Address::generate(&t.env);
+
+        t.client.transfer_admin(&new_admin);
+        assert_eq!(t.client.get_pending_admin(), Some(new_admin));
+
+        t.client.cancel_admin_transfer();
+        assert_eq!(t.client.get_pending_admin(), None);
+        assert_eq!(t.client.get_admin(), t.admin);
+    }
+
+    #[test]
+    fn reject_nominate_same_as_current_admin() {
+        let t = TestSetup::new();
+        let result = t.client.try_transfer_admin(&t.admin);
+        assert_eq!(result, Err(Ok(Error::InvalidPendingAdmin)));
+    }
+
+    #[test]
+    fn reject_accept_with_no_pending() {
+        let t = TestSetup::new();
+        let result = t.client.try_accept_admin();
+        assert_eq!(result, Err(Ok(Error::NoPendingTransfer)));
+    }
+
+    #[test]
+    fn reject_cancel_with_no_pending() {
+        let t = TestSetup::new();
+        let result = t.client.try_cancel_admin_transfer();
+        assert_eq!(result, Err(Ok(Error::NoPendingTransfer)));
+    }
+
+    #[test]
+    fn get_pending_admin_returns_none_when_no_transfer() {
+        let t = TestSetup::new();
+        assert_eq!(t.client.get_pending_admin(), None);
+    }
+
+    #[test]
+    fn nominate_overwrites_previous_pending() {
+        let t = TestSetup::new();
+        let new_admin1 = Address::generate(&t.env);
+        let new_admin2 = Address::generate(&t.env);
+
+        t.client.transfer_admin(&new_admin1);
+        assert_eq!(t.client.get_pending_admin(), Some(new_admin1.clone()));
+
+        t.client.transfer_admin(&new_admin2);
+        assert_eq!(t.client.get_pending_admin(), Some(new_admin2.clone()));
+
+        t.client.accept_admin();
+        assert_eq!(t.client.get_admin(), new_admin2);
+    }
+}
