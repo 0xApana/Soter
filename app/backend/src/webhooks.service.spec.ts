@@ -88,7 +88,9 @@ describe('WebhooksService', () => {
     it('should throw AppException(WEBHOOK_DUPLICATE_EVENT) if event is already processed', async () => {
       mockPrisma.webhookEvent.findUnique.mockResolvedValue({ id: '1' });
 
-      await expect(service.processAiVerification(payload)).rejects.toMatchObject({
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
         errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT,
         statusCode: 409,
       });
@@ -106,7 +108,9 @@ describe('WebhooksService', () => {
 
       expect(caught).toBeInstanceOf(AppException);
       const ex = caught as AppException;
-      expect(ex.errorCode).toBe(INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT);
+      expect(ex.errorCode).toBe(
+        INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT,
+      );
       expect(ex.statusCode).toBe(409);
       expect(ex.details).toMatchObject({ eventId: payload.eventId });
     });
@@ -115,7 +119,9 @@ describe('WebhooksService', () => {
       mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
       mockSessionServiceObj.getSession.mockResolvedValue(null);
 
-      await expect(service.processAiVerification(payload)).rejects.toMatchObject({
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
         errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_SESSION_NOT_FOUND,
         statusCode: 404,
       });
@@ -129,7 +135,9 @@ describe('WebhooksService', () => {
         steps: [],
       });
 
-      await expect(service.processAiVerification(payload)).rejects.toMatchObject({
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
         errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_SESSION_NOT_FOUND,
         statusCode: 404,
       });
@@ -143,7 +151,9 @@ describe('WebhooksService', () => {
         steps: [{ stepName: 'other_step', status: 'pending' }],
       });
 
-      await expect(service.processAiVerification(payload)).rejects.toMatchObject({
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
         errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_STEP_NOT_FOUND,
         statusCode: 404,
       });
