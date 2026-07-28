@@ -1,14 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WebhooksService } from './webhooks.service';
-import { SessionService } from 'src/session/session.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { SessionService } from './session/session.service';
+import { PrismaService } from './prisma/prisma.service';
 import {
   AiVerificationPayloadDto,
   VerificationStatus,
-} from 'src/ai-verification.dto';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+} from './ai-verification.dto';
+import {
+  AppException,
+  INTEGRATION_ERROR_CODES,
+} from './common/constants/integration-error-codes';
 
-// Intercept and mock Prisma runtime enums to prevent 'undefined' property reading failures
 jest.mock('@prisma/client', () => {
   return {
     ...jest.requireActual('@prisma/client'),
@@ -26,9 +28,16 @@ jest.mock('@prisma/client', () => {
   };
 });
 
+type MockPrismaService = {
+  webhookEvent: {
+    findUnique: jest.Mock;
+    create: jest.Mock;
+  };
+  $transaction: jest.Mock;
+};
+
 describe('WebhooksService', () => {
   let service: WebhooksService;
-  let prisma: PrismaService;
   let sessionService: SessionService;
 
   const mockPrisma = {
@@ -39,9 +48,9 @@ describe('WebhooksService', () => {
     $transaction: jest
       .fn()
       .mockImplementation(callback => callback(mockPrisma)),
-  };
+  } as unknown as MockPrismaService;
 
-  const mockSessionService = {
+  const mockSessionServiceObj = {
     getSession: jest.fn(),
     submitToStep: jest.fn(),
   };
@@ -57,13 +66,15 @@ describe('WebhooksService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhooksService,
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: SessionService, useValue: mockSessionService },
+        {
+          provide: PrismaService,
+          useValue: mockPrisma as unknown as PrismaService,
+        },
+        { provide: SessionService, useValue: mockSessionServiceObj },
       ],
     }).compile();
 
     service = module.get<WebhooksService>(WebhooksService);
-    prisma = module.get<PrismaService>(PrismaService);
     sessionService = module.get<SessionService>(SessionService);
 
     jest.clearAllMocks();
@@ -74,40 +85,84 @@ describe('WebhooksService', () => {
   });
 
   describe('processAiVerification', () => {
-    it('should throw ConflictException if event is already processed', async () => {
+    it('should throw AppException(WEBHOOK_DUPLICATE_EVENT) if event is already processed', async () => {
       mockPrisma.webhookEvent.findUnique.mockResolvedValue({ id: '1' });
 
-      await expect(service.processAiVerification(payload)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
+        errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT,
+        statusCode: 409,
+      });
     });
 
-    it('should throw NotFoundException if session is not found or not active', async () => {
-      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
-      mockSessionService.getSession.mockResolvedValue(null);
+    it('should be an AppException instance for duplicate event', async () => {
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue({ id: '1' });
 
-      await expect(service.processAiVerification(payload)).rejects.toThrow(
-        NotFoundException,
+      let caught: unknown;
+      try {
+        await service.processAiVerification(payload);
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(AppException);
+      const ex = caught as AppException;
+      expect(ex.errorCode).toBe(
+        INTEGRATION_ERROR_CODES.WEBHOOK_DUPLICATE_EVENT,
       );
+      expect(ex.statusCode).toBe(409);
+      expect(ex.details).toMatchObject({ eventId: payload.eventId });
     });
 
-    it('should throw NotFoundException if a suitable step is not found', async () => {
+    it('should throw AppException(WEBHOOK_SESSION_NOT_FOUND) if session is missing', async () => {
       mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
-      mockSessionService.getSession.mockResolvedValue({
+      mockSessionServiceObj.getSession.mockResolvedValue(null);
+
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
+        errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_SESSION_NOT_FOUND,
+        statusCode: 404,
+      });
+    });
+
+    it('should throw AppException(WEBHOOK_SESSION_NOT_FOUND) if session is not pending', async () => {
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockSessionServiceObj.getSession.mockResolvedValue({
+        id: 'sess_456',
+        status: 'approved',
+        steps: [],
+      });
+
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
+        errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_SESSION_NOT_FOUND,
+        statusCode: 404,
+      });
+    });
+
+    it('should throw AppException(WEBHOOK_STEP_NOT_FOUND) if no matching step exists', async () => {
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockSessionServiceObj.getSession.mockResolvedValue({
         id: 'sess_456',
         status: 'pending',
         steps: [{ stepName: 'other_step', status: 'pending' }],
       });
 
-      await expect(service.processAiVerification(payload)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.processAiVerification(payload),
+      ).rejects.toMatchObject({
+        errorCode: INTEGRATION_ERROR_CODES.WEBHOOK_STEP_NOT_FOUND,
+        statusCode: 404,
+      });
     });
 
     it('should process the webhook successfully', async () => {
       const stepId = 'step_789';
       mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
-      mockSessionService.getSession.mockResolvedValue({
+      mockSessionServiceObj.getSession.mockResolvedValue({
         id: 'sess_456',
         status: 'pending',
         steps: [
@@ -121,7 +176,7 @@ describe('WebhooksService', () => {
 
       const result = await service.processAiVerification(payload);
 
-      expect(prisma.webhookEvent.create).toHaveBeenCalled();
+      expect(mockPrisma.webhookEvent.create).toHaveBeenCalled();
       expect(sessionService.submitToStep).toHaveBeenCalledWith(
         payload.sessionId,
         stepId,
