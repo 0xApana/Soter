@@ -17,7 +17,7 @@ describe('SandboxService', () => {
   let _configService: ConfigService;
 
   const mockPrisma = {
-    ngo: {
+    organization: {
       deleteMany: jest.fn(),
       upsert: jest.fn(),
     },
@@ -96,7 +96,7 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is development', async () => {
       mockConfigService.get.mockReturnValue('development');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({
+      mockPrisma.organization.upsert.mockResolvedValue({
         id: DEMO_TENANT_SEED.ngoId,
         name: DEMO_TENANT_SEED.name,
       });
@@ -119,7 +119,7 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is test', async () => {
       mockConfigService.get.mockReturnValue('test');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({
+      mockPrisma.organization.upsert.mockResolvedValue({
         id: DEMO_TENANT_SEED.ngoId,
         name: DEMO_TENANT_SEED.name,
       });
@@ -134,7 +134,7 @@ describe('SandboxService', () => {
     it('should proceed if NODE_ENV is sandbox', async () => {
       mockConfigService.get.mockReturnValue('sandbox');
       mockPrisma.campaign.findMany.mockResolvedValue([]);
-      mockPrisma.ngo.upsert.mockResolvedValue({
+      mockPrisma.organization.upsert.mockResolvedValue({
         id: DEMO_TENANT_SEED.ngoId,
         name: DEMO_TENANT_SEED.name,
       });
@@ -156,7 +156,9 @@ describe('SandboxService', () => {
       mockPrisma.campaign.findMany.mockResolvedValue(mockCampaigns);
 
       // Mock upsert operations to return the created/updated object
-      mockPrisma.ngo.upsert.mockResolvedValue({ id: DEMO_TENANT_SEED.ngoId });
+      mockPrisma.organization.upsert.mockResolvedValue({
+        id: DEMO_TENANT_SEED.ngoId,
+      });
       mockPrisma.campaign.upsert.mockImplementation(args =>
         Promise.resolve({ id: 'new-campaign-id', ...args.create }),
       );
@@ -171,12 +173,12 @@ describe('SandboxService', () => {
       expect(mockPrisma.campaign.deleteMany).toHaveBeenCalledWith({
         where: { ngoId: DEMO_TENANT_SEED.ngoId },
       });
-      expect(mockPrisma.ngo.deleteMany).toHaveBeenCalledWith({
+      expect(mockPrisma.organization.deleteMany).toHaveBeenCalledWith({
         where: { id: DEMO_TENANT_SEED.ngoId },
       });
 
       // Verify seeding calls
-      expect(mockPrisma.ngo.upsert).toHaveBeenCalledWith(
+      expect(mockPrisma.organization.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: DEMO_TENANT_SEED.ngoId },
           create: expect.objectContaining({ id: DEMO_TENANT_SEED.ngoId }),
