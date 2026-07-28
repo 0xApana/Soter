@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-type Platform = 'web' | 'ios' | 'android';
+export type Platform = 'web' | 'ios' | 'android';
 
-interface ReleaseNotesConfig {
+export interface ReleaseNotesConfig {
   version: string;
   title: string;
   changes: string[];
@@ -11,7 +11,7 @@ interface ReleaseNotesConfig {
   continueLabel: string;
 }
 
-interface ForceUpgradeConfig {
+export interface ForceUpgradeConfig {
   title: string;
   message: string;
   details: string;
@@ -21,7 +21,7 @@ interface ForceUpgradeConfig {
   supportLabel: string;
 }
 
-interface ReleaseConfigResponse {
+export interface ReleaseConfigResponse {
   platform: Platform;
   currentVersion: string;
   latestVersion: string;
@@ -121,9 +121,10 @@ export class ReleaseConfigService {
         releaseNotes: {
           ...DEFAULT_RELEASE_CONFIG.releaseNotes,
           ...parsed.releaseNotes,
-          changes:
-            parsed.releaseNotes?.changes ??
-            DEFAULT_RELEASE_CONFIG.releaseNotes.changes,
+          changes: [
+            ...(parsed.releaseNotes?.changes ??
+              DEFAULT_RELEASE_CONFIG.releaseNotes.changes),
+          ],
         },
         forceUpgradeScreen: {
           ...DEFAULT_RELEASE_CONFIG.forceUpgradeScreen,
