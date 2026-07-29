@@ -44,13 +44,11 @@ jobs:
       working-directory: ./app/ai-service
       run: |
         black --check .
-      continue-on-error: true
       
     - name: Type checking with mypy
       working-directory: ./app/ai-service
       run: |
-        mypy . --ignore-missing-imports
-      continue-on-error: true
+        mypy . --ignore-missing-imports --exclude schemas/
 
   test:
     runs-on: ubuntu-latest
