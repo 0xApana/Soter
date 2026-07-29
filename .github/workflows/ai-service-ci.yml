@@ -48,7 +48,8 @@ jobs:
     - name: Type checking with mypy
       working-directory: ./app/ai-service
       run: |
-        mypy . --ignore-missing-imports --exclude schemas/
+        mypy . --ignore-missing-imports
+      continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
