@@ -71,7 +71,7 @@ cp .env.example .env
 ```
 ```env
 PORT=8000
-BACKEND_CALLBACK_URL="http://localhost:3001/api/v1/verifications/callback"
+BACKEND_WEBHOOK_URL="http://localhost:3001/api/v1/webhooks/ai-verification"
 ```
 
 #### Frontend (`app/frontend/.env.local`)

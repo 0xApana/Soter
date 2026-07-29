@@ -47,7 +47,7 @@ The Soter platform consists of 4 primary service boundaries:
    - Executes PII scrubbing (redacting sensitive facial/identity info).
    - Runs classification & fraud detection models against the evidence.
    - Computes a confidence score (`aiScore` 0.0 – 1.0) and status (`PASSED`, `FLAGGED`, `FAILED`).
-8. AI Service fires webhook callback to **Backend** (`POST /api/v1/verifications/callback`).
+8. AI Service fires webhook callback to **Backend** (`POST /api/v1/webhooks/ai-verification`).
 
 ---
 
@@ -79,7 +79,7 @@ sequenceDiagram
     Client->>Backend: POST /api/v1/verifications (Upload Evidence)
     Backend->>AI: POST /verify (Async Evidence Payload)
     AI->>AI: PII Scrubber & Fraud Check
-    AI-->>Backend: POST /api/v1/verifications/callback (Verification Result)
+    AI-->>Backend: POST /api/v1/webhooks/ai-verification (Verification Result)
     Backend->>Backend: Update Package Status -> VERIFIED
 
     Note over Client,Onchain: Phase 3: Claim & Disbursement
