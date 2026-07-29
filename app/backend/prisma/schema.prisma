@@ -913,6 +913,51 @@ enum DevicePlatform {
   android
 }
 
+enum LockStatus {
+  active
+  released
+  expired
+  force_expired
+}
+
+model ReviewLock {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  /// Entity being locked (e.g., "verification", "claim")
+  entityType    String
+
+  /// ID of the locked entity
+  entityId      String
+
+  /// User who acquired the lock
+  lockedBy      String
+
+  /// Timestamp when lock was acquired
+  lockedAt      DateTime  @default(now())
+
+  /// Timestamp when lock expires (stale lock recovery)
+  expiresAt     DateTime
+
+  /// Current lock status
+  status        LockStatus @default(active)
+
+  /// Timestamp when lock was released
+  releasedAt    DateTime?
+
+  /// Optional reason for release (manual, expired, force)
+  releaseReason String?
+
+  /// Version for optimistic locking (prevents race conditions)
+  version       Int       @default(1)
+
+  @@index([entityType, entityId, status])
+  @@index([lockedBy])
+  @@index([expiresAt])
+  @@index([status, expiresAt])
+}
+
 model DeviceNotificationToken {
   id          String          @id @default(cuid())
   userId      String
