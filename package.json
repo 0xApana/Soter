@@ -7,7 +7,8 @@
     "build": "npm run build --workspace=app/frontend",
     "start": "npm run start --workspace=app/frontend",
     "lint": "npm run lint --workspace=app/frontend",
-    "test": "npm run test --workspace=app/frontend"
+    "test": "npm run test --workspace=app/frontend",
+    "postinstall": "prisma generate"
   },
   "devDependencies": {
     "@prisma/client": "^7.4.1",
@@ -45,7 +46,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Truphile/Soter/issues"
   },
