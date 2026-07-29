@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     task_retry_delay_seconds: int = 30
 
     # Backend webhook URL for notifications
-    backend_webhook_url: Optional[HttpUrl] = (
+    backend_webhook_url: HttpUrl = (
         "http://localhost:3000/api/v1/webhooks/ai-verification"
     )
 
