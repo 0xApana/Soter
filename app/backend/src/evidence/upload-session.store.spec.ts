@@ -11,7 +11,6 @@ function makeSession(overrides: Record<string, any> = {}) {
     totalSize: 300,
     chunkSize: 100,
     totalChunks: 3,
-    expectedChecksum: 'somehash',
     status: UploadSessionStatus.active,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),

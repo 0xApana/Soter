@@ -69,7 +69,6 @@ export class UploadSessionService {
         totalSize: dto.totalSize,
         chunkSize: dto.chunkSize,
         totalChunks,
-        expectedChecksum: dto.expectedChecksum,
         status: UploadSessionStatus.active,
         expiresAt: new Date(Date.now() + SESSION_TTL_MS),
       },
@@ -187,16 +186,6 @@ export class UploadSessionService {
       .createHash('sha256')
       .update(assembled)
       .digest('hex');
-
-    if (fileHash !== session.expectedChecksum) {
-      await fs.unlink(evidenceFile);
-      await this.store.updateSessionStatus(
-        sessionId,
-        UploadSessionStatus.aborted,
-      );
-      await this.store.cleanupSession(sessionId, session.totalChunks);
-      throw new BadRequestException('Reassembled file checksum mismatch');
-    }
 
     // Check for exact duplicate in evidence queue
     const duplicate = await this.prisma.evidenceQueueItem.findFirst({

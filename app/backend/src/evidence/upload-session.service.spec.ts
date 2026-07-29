@@ -29,7 +29,6 @@ function baseSession() {
     totalSize: 300,
     chunkSize: 100,
     totalChunks: 3,
-    expectedChecksum: sha256(Buffer.concat([Buffer.alloc(100, 0x61), Buffer.alloc(100, 0x61), Buffer.alloc(100, 0x61)])),
     status: UploadSessionStatus.active,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
@@ -103,7 +102,6 @@ describe('UploadSessionService', () => {
         mimeType: 'text/plain',
         totalSize: 200,
         chunkSize: 100,
-        expectedChecksum: 'somehash',
       };
       const created = makeSession({ totalChunks: 2 });
       mockStore.createSession.mockResolvedValue(created);
@@ -125,7 +123,6 @@ describe('UploadSessionService', () => {
             mimeType: 'text/plain',
             totalSize: 10,
             chunkSize: 10,
-            expectedChecksum: 'hash',
           },
           'owner-1',
         ),
@@ -140,7 +137,6 @@ describe('UploadSessionService', () => {
             mimeType: 'application/x-msdownload',
             totalSize: 10,
             chunkSize: 10,
-            expectedChecksum: 'hash',
           },
           'owner-1',
         ),
@@ -155,7 +151,6 @@ describe('UploadSessionService', () => {
             mimeType: 'text/plain',
             totalSize: 11 * 1024 * 1024,
             chunkSize: 1024 * 1024,
-            expectedChecksum: 'hash',
           },
           'owner-1',
         ),
@@ -308,13 +303,6 @@ describe('UploadSessionService', () => {
       (fsPromises.unlink as jest.Mock).mockResolvedValue(undefined);
       await expect(service.finalize('sess-1', 'owner-1')).rejects.toThrow(
         ConflictException,
-      );
-    });
-
-    it('throws BadRequestException on assembled file checksum mismatch', async () => {
-      mockStore.getSession.mockResolvedValue(makeSession({ expectedChecksum: 'wronghash' }));
-      await expect(service.finalize('sess-1', 'owner-1')).rejects.toThrow(
-        /Reassembled file checksum mismatch/i,
       );
     });
 
