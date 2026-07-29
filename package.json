@@ -7,7 +7,7 @@
     "build": "pnpm run build --filter=app/frontend",
     "start": "pnpm run start --filter=app/frontend",
     "lint": "pnpm run lint --filter=app/frontend",
-    "test": "pnpm run test --filter=app/frontend",
+    "test": "pnpm run test --filter=app/frontend"
   },
   "devDependencies": {
     "@prisma/client": "^7.4.1",
