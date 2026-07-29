@@ -22,10 +22,6 @@ export class CreateUploadSessionDto {
   @Min(MIN_CHUNK_SIZE)
   @Max(MAX_CHUNK_SIZE)
   chunkSize: number;
-
-  /** Expected SHA-256 hex checksum of the entire file. */
-  @IsString()
-  expectedChecksum: string;
 }
 
 export class UploadChunkDto {
