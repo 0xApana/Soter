@@ -76,8 +76,7 @@ jobs:
     - name: Run tests with pytest
       working-directory: ./app/ai-service
       run: |
-        pytest --cov=. --cov-report=xml || echo "No tests found or tests failed"
-      continue-on-error: true
+        pytest --cov=. --cov-report=xml --junitxml=test-results.xml
       
     - name: Run setup verification
       working-directory: ./app/ai-service
