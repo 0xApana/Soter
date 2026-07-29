@@ -152,7 +152,11 @@ jobs:
         
     - name: Test Docker container
       run: |
-        docker run -d --name test-container -p 8000:8000 soter-ai-service:test
+        docker run -d --name test-container \
+          -e APP_ENV=development \
+          -e TEST_PROVIDER_MODE=true \
+          -p 8000:8000 \
+          soter-ai-service:test
         # Wait for container to be ready with retry logic
         for i in $(seq 1 30); do
           if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
