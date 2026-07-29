@@ -3,12 +3,11 @@
   "private": true,
   "workspaces": ["app/*", "tools/*"],
   "scripts": {
-    "dev": "npm run dev --workspace=app/frontend",
-    "build": "npm run build --workspace=app/frontend",
-    "start": "npm run start --workspace=app/frontend",
-    "lint": "npm run lint --workspace=app/frontend",
-    "test": "npm run test --workspace=app/frontend",
-    "postinstall": "prisma generate --schema=app/backend/prisma/schema.prisma"
+    "dev": "pnpm run dev --filter=app/frontend",
+    "build": "pnpm run build --filter=app/frontend",
+    "start": "pnpm run start --filter=app/frontend",
+    "lint": "pnpm run lint --filter=app/frontend",
+    "test": "pnpm run test --filter=app/frontend",
   },
   "devDependencies": {
     "@prisma/client": "^7.4.1",
