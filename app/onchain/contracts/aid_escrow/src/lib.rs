@@ -1900,6 +1900,16 @@ impl AidEscrow {
     ) -> Vec<crate::delegate::DelegateHistory> {
         crate::delegate::get_delegate_history(&env, package_id)
     }
+
+    /// Cleanup expired delegates to reclaim storage.
+    /// Called periodically or as part of maintenance operations.
+    pub fn cleanup_expired_delegates(
+        env: Env,
+        admin: Address,
+    ) -> Result<u32, Error> {
+        admin.require_auth();
+        crate::delegate::cleanup_expired_delegates(&env, &admin)
+    }
 }
 
 // --- Tests ---

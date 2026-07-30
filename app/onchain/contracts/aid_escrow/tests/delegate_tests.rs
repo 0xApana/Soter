@@ -4,7 +4,7 @@ use aid_escrow::{AidEscrow, AidEscrowClient, Error, PackageStatus};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     token::{StellarAssetClient, TokenClient},
-    Address, Env, Map, Vec,
+    Address, Env, Map, String, Vec,
 };
 
 const UNIT: i128 = 10_000_000;
@@ -138,7 +138,7 @@ fn test_remove_delegate() {
     assert_eq!(client.get_delegate(&pkg_id), Some(delegate.clone()));
 
     // Remove delegate
-    client.remove_delegate(&admin, &pkg_id);
+    client.revoke_delegate(&admin, &pkg_id);
     assert_eq!(client.get_delegate(&pkg_id), None);
 }
 
@@ -185,7 +185,7 @@ fn test_delegate_claim_via_claim_with_proof() {
     let (env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address;
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     // Set delegate
@@ -208,7 +208,7 @@ fn test_delegate_claim_clears_delegate() {
     let (env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address;
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     client.set_delegate(&admin, &pkg_id, &delegate);
@@ -228,10 +228,10 @@ fn test_delegate_claim_clears_delegate() {
 
 #[test]
 fn test_recipient_claim_also_clears_delegate() {
-    let (env, client, admin, recipient, delegate, token_client, _) = setup();
+    let (_env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address;
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     client.set_delegate(&admin, &pkg_id, &delegate);
@@ -252,7 +252,7 @@ fn test_stranger_cannot_claim_as_delegate() {
     let (env, client, admin, recipient, _delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address;
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     // Set delegate
@@ -275,7 +275,7 @@ fn test_expired_delegate_cannot_claim() {
     let (env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address;
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     let now = env.ledger().timestamp();
@@ -297,7 +297,7 @@ fn test_expired_delegate_cannot_claim() {
 
 #[test]
 fn test_cannot_set_delegate_for_nonexistent_package() {
-    let (env, client, admin, _recipient, delegate, _token_client, _) = setup();
+    let (_env, client, admin, _recipient, delegate, _token_client, _) = setup();
 
     let result = client.try_set_delegate(&admin, &999, &delegate);
     assert_eq!(result, Err(Ok(Error::PackageNotFound)));
@@ -305,7 +305,7 @@ fn test_cannot_set_delegate_for_nonexistent_package() {
 
 #[test]
 fn test_cannot_set_delegate_for_claimed_package() {
-    let (env, client, admin, recipient, delegate, token_client, _) = setup();
+    let (_env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
     let token = token_client.address;
