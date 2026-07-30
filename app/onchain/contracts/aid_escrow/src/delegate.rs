@@ -318,16 +318,10 @@ pub fn get_authorization_info(
                         (false, Some(Symbol::new(env, "Delegate expired")))
                     }
                 } else {
-                    (
-                        true,
-                        Some(Symbol::new(env, "Delegate (no expiration)")),
-                    )
+                    (true, Some(Symbol::new(env, "Delegate (no expiration)")))
                 }
             } else {
-                (
-                    false,
-                    Some(Symbol::new(env, "Not the registered delegate")),
-                )
+                (false, Some(Symbol::new(env, "Not the registered delegate")))
             }
         }
         None => (false, Some(Symbol::new(env, "No delegate registered"))),
