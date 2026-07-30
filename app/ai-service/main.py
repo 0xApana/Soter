@@ -11,6 +11,7 @@ import logging
 import uuid
 from contextvars import ContextVar
 from pythonjsonlogger import jsonlogger
+from logging_redaction import RedactionFilter
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -20,6 +21,7 @@ from exceptions import AIServiceError, LoadShedError
 from schemas.errors import ErrorDetail, ErrorEnvelope
 import time
 import metrics
+import re
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -41,6 +43,7 @@ from schemas.humanitarian import (
     HumanitarianVerificationResponse,
 )
 from services.humanitarian_verification import HumanitarianVerificationService
+from services.evidence_access_control import EvidenceAccessControl
 
 # Context variable for correlation ID
 correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="")
@@ -55,7 +58,9 @@ class CorrelationIdFilter(logging.Filter):
 limiter = Limiter(key_func=get_remote_address)
 
 # Set up structured logging with correlation ID
-log_level_name = settings.log_level.upper() if hasattr(settings, "log_level") else "INFO"
+log_level_name = (
+    settings.log_level.upper() if hasattr(settings, "log_level") else "INFO"
+)
 log_level = getattr(logging, log_level_name, logging.INFO)
 
 # Configure root logger
@@ -75,6 +80,7 @@ json_formatter = jsonlogger.JsonFormatter(
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(json_formatter)
 stream_handler.addFilter(CorrelationIdFilter())
+stream_handler.addFilter(RedactionFilter())
 root_logger.addHandler(stream_handler)
 
 # Get logger for this module
@@ -116,11 +122,19 @@ async def lifespan(app: FastAPI):
 
     # Initialize cache service
     from services.cache import CacheService
+
     app.state.cache = CacheService(settings)
     if app.state.cache.enabled:
         logger.info("Response caching enabled with Redis")
     else:
         logger.warning("Response caching disabled (Redis unavailable)")
+
+    # Expose the long-lived collaboration/AIService collaborators on app state
+    # so versioned routers can resolve them via ``request.app.state`` instead of
+    # importing private globals from this module.  Tests inject Mocks onto the
+    # same keys via TestClient.app.state.
+    app.state.artifact_access_control = evidence_access_control
+    app.state.humanitarian_verification_service = humanitarian_verification_service
 
     yield
     logger.info("Shutting down Soter AI Service...")
@@ -141,6 +155,26 @@ proof_of_life_analyzer = ProofOfLifeAnalyzer(
 )
 pii_scrubber_service = PIIScrubberService()
 humanitarian_verification_service = HumanitarianVerificationService()
+
+# Initialize evidence access control service
+from services.artifact_access import ArtifactAccessService
+from services.evidence_access_control import EvidenceAccessControl
+
+# Create artifact access service and wrap with evidence access control
+artifact_access_service_instance = ArtifactAccessService(
+    artifacts_dir=settings.verification_artifacts_dir,
+    signing_secret=settings.artifact_signing_secret,
+    ttl_seconds=settings.verification_artifact_url_ttl_seconds,
+)
+evidence_access_control = EvidenceAccessControl(artifact_access_service_instance)
+
+# Wire the long-lived collaborators onto ``app.state`` at module-init time so
+# the production app *and* ``TestClient(app)`` (which does not enter lifespan
+# unless used as a context manager) both have these resolvable.  ``lifespan``
+# re-asserts the same references on startup so hot-reload / re-import
+# scenarios stay consistent.
+app.state.humanitarian_verification_service = humanitarian_verification_service
+app.state.artifact_access_control = evidence_access_control
 
 
 class InferenceRequest(BaseModel):
@@ -185,6 +219,86 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    """
+    Custom CORS middleware with allowlist-based origin validation.
+
+    - Validates origins against configured allowlist
+    - Supports Vercel preview deployments via wildcard patterns
+    - Protects sensitive endpoints by disallowing CORS entirely
+    - Handles preflight OPTIONS requests
+    """
+    origin = request.headers.get("origin")
+    path = request.url.path
+
+    # Sensitive endpoints that should NEVER allow CORS
+    # These require direct server-to-server communication or same-origin
+    SENSITIVE_ENDPOINTS = {
+        "/v1/ai/verification-artifacts",
+        "/ai/verification-artifacts",
+    }
+
+    is_sensitive = any(path.startswith(endpoint) for endpoint in SENSITIVE_ENDPOINTS)
+
+    # For sensitive endpoints, reject CORS entirely
+    if is_sensitive and origin:
+        logger.warning(
+            "cors_rejected_sensitive_endpoint",
+            extra={
+                "event": "cors_rejected",
+                "origin": origin,
+                "path": path,
+                "reason": "sensitive_endpoint",
+            },
+        )
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": {
+                    "code": "CORS_NOT_ALLOWED",
+                    "message": "CORS not allowed for sensitive endpoints",
+                }
+            },
+        )
+
+    # Check if origin is allowed
+    is_allowed = False
+    if origin:
+        is_allowed = settings.is_origin_allowed(origin)
+
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        if is_allowed:
+            response = Response()
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Allow-Headers"] = (
+                "Content-Type, Authorization, X-User-Role, X-Org-Id, X-User-Id, X-Correlation-Id, X-Request-Id"
+            )
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Max-Age"] = "86400"
+            return response
+        else:
+            # Reject preflight for disallowed origins
+            return Response(status_code=204)
+
+    # Process the request
+    response = await call_next(request)
+
+    # Add CORS headers for allowed origins on non-sensitive endpoints
+    if is_allowed and not is_sensitive:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Expose-Headers"] = (
+            "X-Correlation-Id, X-Request-Id, Trace-Id"
+        )
+
+    return response
+
+
+@app.middleware("http")
 async def legacy_redirect_middleware(request: Request, call_next):
     """
     Transparently redirect un-versioned /ai/* paths to their /v1
@@ -222,24 +336,55 @@ async def legacy_redirect_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
-    correlation_id = request.headers.get("x-correlation-id") or request.headers.get("x-request-id") or str(uuid.uuid4())
-    
+    correlation_id = (
+        request.headers.get("x-correlation-id")
+        or request.headers.get("x-request-id")
+        or str(uuid.uuid4())
+    )
+
     # Attach correlation ID to request state
     request.state.correlation_id = correlation_id
-    
+
     # Set context variable for logging
     correlation_id_token = correlation_id_var.set(correlation_id)
-    
+
     try:
         response = await call_next(request)
     finally:
         correlation_id_var.reset(correlation_id_token)
-    
+
     # Set correlation ID headers in response
     response.headers["x-correlation-id"] = correlation_id
     response.headers["x-request-id"] = correlation_id
     response.headers["trace_id"] = correlation_id
-    
+
+    return response
+
+
+@app.middleware("http")
+async def demo_mode_header_middleware(request: Request, call_next):
+    """
+    Stamp every response with an ``X-Demo-Mode`` header so clients and
+    contributors can tell at a glance whether they are seeing fixture-driven
+    or deterministic data instead of live AI inference.
+
+    Header values:
+    - ``fixture``       — TEST_PROVIDER_MODE is active (no API keys used)
+    - ``deterministic`` — AI_DETERMINISTIC_MODE is active (hardcoded outputs)
+    - ``live``          — real provider is in use
+
+    The companion ``/health/mode`` endpoint exposes the same information as
+    JSON for programmatic consumers.
+    """
+    response = await call_next(request)
+
+    if settings.test_provider_mode:
+        response.headers["X-Demo-Mode"] = "fixture"
+    elif settings.ai_deterministic_mode:
+        response.headers["X-Demo-Mode"] = "deterministic"
+    else:
+        response.headers["X-Demo-Mode"] = "live"
+
     return response
 
 
@@ -326,6 +471,35 @@ async def health_check():
     return {"status": "healthy", "service": "soter-ai-service", "version": "1.0.0"}
 
 
+@app.get("/health/mode")
+async def health_mode():
+    """
+    Returns the current AI provider mode so contributors and the frontend
+    can detect demo/degraded states explicitly.
+
+    Response fields:
+    - ``demo_mode``          — one of ``fixture``, ``deterministic``, or ``live``
+    - ``test_provider_mode`` — whether TEST_PROVIDER_MODE is enabled
+    - ``deterministic_mode`` — whether AI_DETERMINISTIC_MODE is enabled
+    - ``active_provider``    — resolved provider name (``test``, ``openai``, ``groq``, or ``null``)
+    - ``app_env``            — current APP_ENV value
+    """
+    if settings.test_provider_mode:
+        demo_mode = "fixture"
+    elif settings.ai_deterministic_mode:
+        demo_mode = "deterministic"
+    else:
+        demo_mode = "live"
+
+    return {
+        "demo_mode": demo_mode,
+        "test_provider_mode": settings.test_provider_mode,
+        "deterministic_mode": settings.ai_deterministic_mode,
+        "active_provider": settings.get_active_provider(),
+        "app_env": settings.app_env,
+    }
+
+
 @app.get("/health/dependencies")
 async def health_dependencies():
     """Lightweight dependency probe for staging and CI.
@@ -372,12 +546,21 @@ async def health_dependencies():
 
 @app.get("/")
 async def root():
+    if settings.test_provider_mode:
+        demo_mode = "fixture"
+    elif settings.ai_deterministic_mode:
+        demo_mode = "deterministic"
+    else:
+        demo_mode = "live"
+
     return {
         "service": "Soter AI Service",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",
+        "mode": "/health/mode",
         "api_v1": "/v1",
+        "demo_mode": demo_mode,
     }
 
 
@@ -611,7 +794,9 @@ async def general_exception_handler(request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content=ErrorEnvelope(
-            error=ErrorDetail(code="INTERNAL_SERVER_ERROR", message="Internal server error")
+            error=ErrorDetail(
+                code="INTERNAL_SERVER_ERROR", message="Internal server error"
+            )
         ).model_dump(),
     )
 
