@@ -12,7 +12,7 @@
 //! - Optimized storage operations
 //! - Comprehensive error handling
 
-use soroban_sdk::{contracttype, symbol_short, Address, Env, Map, String, Symbol, Vec};
+use soroban_sdk::{contracttype, symbol_short, Address, Env, Map, Symbol, Vec};
 
 use crate::{Error, PackageStatus};
 
@@ -115,7 +115,7 @@ fn record_delegate_change(
         new_delegate: new_delegate.clone(),
         changed_by: changed_by.clone(),
         changed_at: env.ledger().timestamp(),
-        reason: String::from_str(env, reason),
+        reason,
     };
     history.push_back(record);
     save_delegate_history(env, &history);
@@ -136,7 +136,7 @@ fn record_delegate_change_system(
         new_delegate: new_delegate.clone(),
         changed_by: env.current_contract_address(), // System uses contract address as placeholder
         changed_at: env.ledger().timestamp(),
-        reason: String::from_str(env, reason),
+        reason,
     };
     history.push_back(record);
     save_delegate_history(env, &history);
@@ -300,7 +300,7 @@ pub fn get_authorization_info(
 ) -> (bool, Option<Symbol>) {
     // Check if claimer is primary recipient
     if claimer == primary_recipient {
-        return (true, Some(String::from_str(env, "Primary recipient")));
+        return (true, Some(Symbol::new(env, "Primary recipient")));
     }
 
     // Check delegate status
@@ -312,25 +312,25 @@ pub fn get_authorization_info(
                     if expiry > env.ledger().timestamp() {
                         (
                             true,
-                            Some(String::from_str(env, "Delegate (expires at timestamp)")),
+                            Some(Symbol::new(env, "Delegate (expires at timestamp)")),
                         )
                     } else {
-                        (false, Some(String::from_str(env, "Delegate expired")))
+                        (false, Some(Symbol::new(env, "Delegate expired")))
                     }
                 } else {
                     (
                         true,
-                        Some(String::from_str(env, "Delegate (no expiration)")),
+                        Some(Symbol::new(env, "Delegate (no expiration)")),
                     )
                 }
             } else {
                 (
                     false,
-                    Some(String::from_str(env, "Not the registered delegate")),
+                    Some(Symbol::new(env, "Not the registered delegate")),
                 )
             }
         }
-        None => (false, Some(String::from_str(env, "No delegate registered"))),
+        None => (false, Some(Symbol::new(env, "No delegate registered"))),
     }
 }
 
@@ -355,7 +355,7 @@ pub fn clear_delegate(env: &Env, package_id: u64) {
             package_id,
             Some(delegate),
             &env.current_contract_address(),
-            "Delegate cleared after claim",
+            Symbol::new(env, "Delegate cleared after claim"),
         );
     }
 }
@@ -573,21 +573,21 @@ mod tests {
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &recipient);
             assert!(authorized);
-            assert_eq!(reason, Some(String::from_str(&env, "Primary recipient")));
+            assert_eq!(reason, Some(Symbol::new(&env, "Primary recipient")));
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &delegate);
             assert!(authorized);
             let reason_str = reason.unwrap();
             assert!(
-                reason_str == String::from_str(&env, "Delegate (expires at timestamp)")
-                    || reason_str == String::from_str(&env, "Delegate (no expiration)")
+                reason_str == Symbol::new(&env, "Delegate (expires at timestamp)")
+                    || reason_str == Symbol::new(&env, "Delegate (no expiration)")
             );
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &stranger);
             assert!(!authorized);
             assert_eq!(
                 reason,
-                Some(String::from_str(&env, "Not the registered delegate"))
+                Some(Symbol::new(&env, "Not the registered delegate"))
             );
         });
     }
