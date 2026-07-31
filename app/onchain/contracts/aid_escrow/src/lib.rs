@@ -2129,7 +2129,7 @@ impl AidEscrow {
         admin.require_auth();
         crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
-    }
+    
 }
 
 // --- Tests ---
