@@ -157,11 +157,7 @@ describe('HealthController', () => {
   it('GET /health/ready returns 503 when Stellar is required and RPC is down', async () => {
     configValues.STELLAR_RPC_URL = 'https://soroban-testnet.stellar.org';
     configValues.HEALTHCHECK_STELLAR_REQUIRED = 'true';
-    global.fetch = jest
-      .fn()
-      .mockRejectedValueOnce(
-        new Error('rpc timeout'),
-      ) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockRejectedValueOnce(new Error('rpc timeout'));
 
     const res = await request(app.getHttpServer())
       .get('/health/ready')

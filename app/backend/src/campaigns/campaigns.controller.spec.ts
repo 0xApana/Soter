@@ -59,7 +59,7 @@ describe('CampaignsController', () => {
       const chunks: string[] = [];
       res.on('data', chunk => chunks.push(chunk.toString()));
 
-      await controller.exportCampaigns({} as any, res);
+      await controller.exportCampaigns({}, res);
 
       // Proof of streaming, not buffering: the response body arrived as
       // multiple discrete writes (one per generator yield), not a single
@@ -77,7 +77,7 @@ describe('CampaignsController', () => {
       const res = makeMockResponse();
       res.resume(); // drain so the pipeline completes without a reader attached
 
-      await controller.exportCampaigns({} as any, res);
+      await controller.exportCampaigns({}, res);
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Content-Type',

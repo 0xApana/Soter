@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ClaimsService } from './claims.service';
+import { ClaimsService, ClaimExportRow } from './claims.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BudgetService } from '../common/budget/budget.service';
 import {
@@ -529,12 +529,12 @@ describe('ClaimsService', () => {
     });
 
     it('countExport(): counts using the same filters as the export', async () => {
-      jest.spyOn(prismaService.claim, 'count').mockResolvedValue(7 as never);
+      jest.spyOn(prismaService.claim, 'count').mockResolvedValue(7);
 
       const total = await service.countExport({
         status: ClaimStatus.approved,
         campaignId: 'campaign-1',
-      } as any);
+      });
 
       expect(total).toBe(7);
       const args = (prismaService.claim.count as jest.Mock).mock.calls[0]?.[0];
@@ -560,8 +560,8 @@ describe('ClaimsService', () => {
         .mockResolvedValueOnce(firstPage as never)
         .mockResolvedValueOnce([makeRawClaim('claim-500')] as never);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: ClaimExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
       }
 
@@ -579,8 +579,8 @@ describe('ClaimsService', () => {
         .spyOn(prismaService.claim, 'findMany')
         .mockResolvedValue([] as never);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: ClaimExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
       }
 
@@ -598,8 +598,8 @@ describe('ClaimsService', () => {
         .spyOn(prismaService.claim, 'findMany')
         .mockResolvedValue(fullPage as never);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: ClaimExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
         if (rows.length === 3) break;
       }
@@ -618,8 +618,8 @@ describe('ClaimsService', () => {
         ] as never)
         .mockResolvedValueOnce([] as never);
 
-      const chunks = [];
-      for await (const chunk of service.streamExportCsv({} as any)) {
+      const chunks: string[] = [];
+      for await (const chunk of service.streamExportCsv({})) {
         chunks.push(chunk);
       }
 

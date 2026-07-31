@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
-import { CampaignsService } from './campaigns.service';
+import { CampaignsService, CampaignExportRow } from './campaigns.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 
@@ -16,7 +16,7 @@ describe('CampaignsService', () => {
     name: 'Winter Relief 2026',
     status: CampaignStatus.draft,
     budget: new Prisma.Decimal('1000.00') as unknown as number,
-    metadata: { region: 'Lagos' } as Prisma.JsonValue,
+    metadata: { region: 'Lagos' },
     ngoId: null,
     orgId: null,
     archivedAt: null,
@@ -181,7 +181,7 @@ describe('CampaignsService', () => {
         status: CampaignStatus.active,
         orgId: 'org-1',
         ngoId: 'ngo-1',
-      } as any);
+      });
 
       expect(total).toBe(42);
       const args = prismaMock.campaign.count.mock.calls[0]?.[0];
@@ -207,11 +207,11 @@ describe('CampaignsService', () => {
         makeRawCampaign(`c${i}`),
       );
       prismaMock.campaign.findMany
-        .mockResolvedValueOnce(firstPage as any)
-        .mockResolvedValueOnce([makeRawCampaign('c500')] as any);
+        .mockResolvedValueOnce(firstPage)
+        .mockResolvedValueOnce([makeRawCampaign('c500')]);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: CampaignExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
       }
 
@@ -228,10 +228,10 @@ describe('CampaignsService', () => {
     });
 
     it('streamExportRows(): never requests more than the batch size in a single query', async () => {
-      prismaMock.campaign.findMany.mockResolvedValue([] as any);
+      prismaMock.campaign.findMany.mockResolvedValue([]);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: CampaignExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
       }
 
@@ -249,10 +249,10 @@ describe('CampaignsService', () => {
       const fullPage = Array.from({ length: 500 }, (_, i) =>
         makeRawCampaign(`c${i}`),
       );
-      prismaMock.campaign.findMany.mockResolvedValue(fullPage as any);
+      prismaMock.campaign.findMany.mockResolvedValue(fullPage);
 
-      const rows = [];
-      for await (const row of service.streamExportRows({} as any)) {
+      const rows: CampaignExportRow[] = [];
+      for await (const row of service.streamExportRows({})) {
         rows.push(row);
         if (rows.length === 3) break;
       }
@@ -265,11 +265,11 @@ describe('CampaignsService', () => {
       prismaMock.campaign.findMany
         .mockResolvedValueOnce([
           makeRawCampaign('c1', { name: 'Has, a comma' }),
-        ] as any)
-        .mockResolvedValueOnce([] as any);
+        ])
+        .mockResolvedValueOnce([]);
 
-      const chunks = [];
-      for await (const chunk of service.streamExportCsv({} as any)) {
+      const chunks: string[] = [];
+      for await (const chunk of service.streamExportCsv({})) {
         chunks.push(chunk);
       }
 
