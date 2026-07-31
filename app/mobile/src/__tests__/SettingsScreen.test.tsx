@@ -41,22 +41,6 @@ jest.mock('../contexts/SaverModeContext', () => ({
   }),
 }));
 
-let mockWalletState = {
-  disconnectWallet: jest.fn(),
-  publicKey: null as string | null,
-  isOnCorrectNetwork: false,
-  status: 'idle' as string,
-};
-
-jest.mock('../contexts/WalletContext', () => ({
-  useWallet: () => mockWalletState,
-}));
-
-jest.mock('../explorerUtils', () => ({
-  getAccountExplorerUrl: (addr: string) =>
-    `https://stellar.expert/explorer/testnet/account/${addr}`,
-}));
-
 describe('SettingsScreen', () => {
   beforeEach(() => {
     (config as { network: 'testnet' | 'mainnet' }).network = 'testnet';
