@@ -70,7 +70,6 @@
       "@prisma/engines",
       "@scarf/scarf",
       "@swc/core",
-      "better-sqlite3",
       "msgpackr-extract",
       "prisma",
       "sharp",
