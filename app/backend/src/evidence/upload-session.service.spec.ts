@@ -74,6 +74,7 @@ jest.mock('fs/promises', () => ({
 }));
 
 jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
   existsSync: jest.fn(() => true),
   mkdirSync: jest.fn(),
 }));
