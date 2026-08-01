@@ -184,6 +184,11 @@ fn test_package_claimed_event() {
     assert_eq!(data_i128(&env, &data, "amount"), UNIT);
     assert_eq!(data_address(&env, &data, "actor"), recipient);
     assert_field_exists(&env, &data, "timestamp");
+    // receipt_hash is absent from metadata -> must be an empty string
+    assert_eq!(
+        data_string(&env, &data, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "")
+    );
 }
 
 #[test]
@@ -218,6 +223,11 @@ fn test_package_disbursed_event() {
     assert_eq!(data_i128(&env, &data, "amount"), UNIT);
     assert_eq!(data_address(&env, &data, "actor"), admin);
     assert_field_exists(&env, &data, "timestamp");
+    // receipt_hash is absent from metadata -> must be an empty string
+    assert_eq!(
+        data_string(&env, &data, "receipt_hash"),
+        soroban_sdk::String::from_str(&env, "")
+    );
 }
 
 #[test]

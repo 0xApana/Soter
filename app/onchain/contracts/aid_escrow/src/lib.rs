@@ -1479,6 +1479,8 @@ impl AidEscrow {
         // Check if claimant is a delegate (not the recipient)
         let is_delegate = claimant != &package.recipient;
 
+        let receipt_hash = Self::receipt_hash_from_metadata(env, &package.metadata);
+
         PackageClaimed {
             package_id,
             recipient: payout_recipient.clone(),
