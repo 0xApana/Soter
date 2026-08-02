@@ -107,7 +107,7 @@ function serializeScopes(scopes: ApiKeyScope[]): string {
 }
 
 export function isHighRiskApiKey(
-  role: AppRole | string,
+  role: AppRole,
   scopes: ApiKeyScope[],
 ): boolean {
   return role === AppRole.admin || scopes.includes(ApiKeyScope.admin);
@@ -148,7 +148,7 @@ export function buildRotationGuidance(params: {
 export function deriveRotationStatus(
   row: {
     id: string;
-    role: AppRole | string;
+    role: AppRole;
     scopes: ApiKeyScope[] | string | null | undefined;
     revokedAt: Date | null;
     revokedReason: string | null;
@@ -262,11 +262,7 @@ function toAdminView<
     expiresAt: Date | null;
     lastRemindedAt: Date | null;
   },
->(
-  row: T,
-  reminderWindowDays: number,
-  now: Date = new Date(),
-): ApiKeyAdminView {
+>(row: T, reminderWindowDays: number, now: Date = new Date()): ApiKeyAdminView {
   const scopes = parseScopes(row.scopes);
   const statusFields = deriveRotationStatus(
     { ...row, scopes },
@@ -516,7 +512,10 @@ export class ApiKeysService {
           not: null,
           lte: windowEnd,
         },
-        OR: [{ lastRemindedAt: null }, { lastRemindedAt: { lte: remindBefore } }],
+        OR: [
+          { lastRemindedAt: null },
+          { lastRemindedAt: { lte: remindBefore } },
+        ],
       },
       select: selectFields,
       orderBy: { expiresAt: 'asc' },
@@ -551,9 +550,8 @@ export class ApiKeysService {
       };
       reminders.push(reminder);
 
-      const level = view.isHighRisk || view.rotationStatus === 'expired'
-        ? 'warn'
-        : 'log';
+      const level =
+        view.isHighRisk || view.rotationStatus === 'expired' ? 'warn' : 'log';
       this.logger[level](
         `API key expiry reminder: ${reminder.keyPreview ?? reminder.id} ` +
           `(${reminder.rotationGuidance})`,
