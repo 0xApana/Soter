@@ -1507,7 +1507,11 @@ impl AidEscrow {
         }
         .publish(env);
 
-        // If claimed by delegate, emit DelegateClaimed event and clear delegate
+        // A claim finalizes the package; clear any registered delegate so it
+        // cannot be reused, regardless of whether the recipient or a delegate claimed.
+        crate::delegate::clear_delegate(env, package_id);
+
+        // If claimed by delegate, emit DelegateClaimed event
         if is_delegate {
             // Emit DelegateClaimed event
             DelegateClaimed {
@@ -1519,9 +1523,6 @@ impl AidEscrow {
                 timestamp: now,
             }
             .publish(env);
-
-            // Clear the delegate and emit DelegateRevoked event
-            crate::delegate::clear_delegate(env, package_id);
 
             // Emit DelegateRevoked with claimant as actor (system-initiated on claim)
             DelegateRevoked {
@@ -2134,6 +2135,13 @@ impl AidEscrow {
         .publish(&env);
 
         Ok(())
+    }
+
+    /// Cleanup expired delegates to reclaim storage.
+    /// Called periodically or as part of maintenance operations.
+    pub fn cleanup_expired_delegates(env: Env, admin: Address) -> Result<u32, Error> {
+        admin.require_auth();
+        crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
 }
 
