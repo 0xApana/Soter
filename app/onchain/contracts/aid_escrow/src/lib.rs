@@ -140,6 +140,9 @@ pub struct PackageClaimed {
     pub amount: i128,
     pub actor: Address,
     pub timestamp: u64,
+    /// Optional off-chain receipt hash for anchoring external records.
+    /// Empty string when not provided.
+    pub receipt_hash: String,
 }
 
 #[contractevent]
@@ -158,6 +161,9 @@ pub struct PackageDisbursed {
     pub amount: i128,
     pub actor: Address,
     pub timestamp: u64,
+    /// Optional off-chain receipt hash for anchoring external records.
+    /// Empty string when not provided.
+    pub receipt_hash: String,
 }
 
 #[contractevent]
@@ -1148,12 +1154,14 @@ impl AidEscrow {
         Self::decrement_locked(&env, &package.token, package.amount);
 
         let timestamp = env.ledger().timestamp();
+        let receipt_hash = Self::receipt_hash_from_metadata(&env, &package.metadata);
         PackageDisbursed {
             package_id: id,
             recipient: package.recipient.clone(),
             amount: package.amount,
             actor: admin.clone(),
             timestamp,
+            receipt_hash,
         }
         .publish(&env);
 
@@ -1580,12 +1588,15 @@ impl AidEscrow {
         // Check if claimant is a delegate (not the recipient)
         let is_delegate = claimant != &package.recipient;
 
+        let receipt_hash = Self::receipt_hash_from_metadata(env, &package.metadata);
+
         PackageClaimed {
             package_id,
             recipient: payout_recipient.clone(),
             amount: package.amount,
             actor: payout_recipient.clone(),
             timestamp: now,
+            receipt_hash,
         }
         .publish(env);
 
@@ -1618,6 +1629,11 @@ impl AidEscrow {
         }
 
         Ok(())
+    }
+
+    fn receipt_hash_from_metadata(env: &Env, metadata: &Map<Symbol, String>) -> String {
+        let key = Symbol::new(env, "receipt_hash");
+        metadata.get(key).unwrap_or(String::from_str(env, ""))
     }
 
     fn merkle_root_from_metadata(env: &Env, metadata: &Map<Symbol, String>) -> Option<[u8; 32]> {
@@ -2122,13 +2138,6 @@ impl AidEscrow {
         crate::delegate::get_delegate_history(&env, package_id)
     }
 
-    /// Cleanup expired delegates to reclaim storage.
-    /// Called periodically or as part of maintenance operations.
-    pub fn cleanup_expired_delegates(env: Env, admin: Address) -> Result<u32, Error> {
-        admin.require_auth();
-        crate::delegate::cleanup_expired_delegates(&env, &admin)
-    }
-
     // --- Token Allowlist Management ---
 
     /// Admin-only. Adds a token to the allowed tokens list.
@@ -2219,6 +2228,13 @@ impl AidEscrow {
         .publish(&env);
 
         Ok(())
+    }
+
+    /// Cleanup expired delegates to reclaim storage.
+    /// Called periodically or as part of maintenance operations.
+    pub fn cleanup_expired_delegates(env: Env, admin: Address) -> Result<u32, Error> {
+        admin.require_auth();
+        crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
 }
 

@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Request } from 'express';
@@ -20,14 +15,24 @@ import {
   VerificationJobData,
   VerificationResult,
 } from './interfaces/verification-job.interface';
+import {
+  DEFAULT_VERIFICATION_PRIORITY,
+  EnqueueVerificationDto,
+  VerificationPriority,
+} from './dto/enqueue-verification.dto';
 import { AuditService } from '../audit/audit.service';
 import { firstValueFrom } from 'rxjs';
 import OpenAI from 'openai';
+import {
+  AppException,
+  INTEGRATION_ERROR_CODES,
+} from '../common/constants/integration-error-codes';
 import * as crypto from 'crypto';
 import { CircuitBreaker } from '../common/utils/circuit-breaker.util';
 import { VerificationMetadataService } from './metadata.service';
 import { VerificationResultDto } from './dto/verification-result.dto';
 import { CorrelationPropagationUtil } from '../common/utils/correlation-propagation.util';
+import { MetricsService } from '../observability/metrics/metrics.service';
 
 // ---------------------------------------------------------------------------
 // OCR service types
@@ -144,6 +149,7 @@ export class VerificationService {
     private readonly httpService: HttpService,
     private readonly verificationMetadataService: VerificationMetadataService,
     private readonly correlationUtil: CorrelationPropagationUtil,
+    private readonly metricsService: MetricsService,
   ) {
     this.verificationMode =
       this.configService.get<string>('VERIFICATION_MODE') || 'mock';
@@ -204,38 +210,48 @@ export class VerificationService {
 
   async enqueueVerification(
     claimId: string,
-    anchorMetadata?: {
-      campaignRef?: string;
-      claimId?: string;
-      packageId?: string;
-    },
-  ): Promise<{ jobId: string }> {
+    dto?: EnqueueVerificationDto,
+  ): Promise<{ jobId: string; priority: VerificationPriority }> {
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
     });
 
     if (!claim) {
-      throw new NotFoundException(`Claim with ID ${claimId} not found`);
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+        404,
+        `Claim with ID ${claimId} not found`,
+        { claimId },
+      );
     }
 
     if (claim.status === 'verified') {
       this.logger.warn(`Claim ${claimId} is already verified`);
-      return { jobId: 'already-verified' };
+      return {
+        jobId: 'already-verified',
+        priority: DEFAULT_VERIFICATION_PRIORITY,
+      };
     }
+
+    const priority = dto?.priority ?? DEFAULT_VERIFICATION_PRIORITY;
+    const anchorMetadata = dto?.anchorMetadata;
 
     const jobData: VerificationJobData = {
       claimId,
       timestamp: Date.now(),
+      priority,
       anchorMetadata: anchorMetadata
         ? {
             campaignRef: anchorMetadata.campaignRef ?? null,
             claimId: anchorMetadata.claimId ?? null,
             packageId: anchorMetadata.packageId ?? null,
+            contractId: anchorMetadata.contractId ?? null,
           }
         : undefined,
     };
 
     const job = await this.verificationQueue.add('verify-claim', jobData, {
+      priority,
       attempts: parseInt(
         this.configService.get<string>('QUEUE_MAX_RETRIES') || '3',
       ),
@@ -247,26 +263,38 @@ export class VerificationService {
       removeOnFail: 50,
     });
 
-    this.logger.log(`Enqueued verification job ${job.id} for claim ${claimId}`);
+    const priorityLabel = VerificationPriority[priority] ?? String(priority);
+    this.logger.log(
+      `Enqueued verification job ${job.id} for claim ${claimId} [priority=${priorityLabel}(${priority})]`,
+    );
+
+    this.metricsService.incrementVerificationJobEnqueued(priorityLabel);
 
     await this.auditService.record({
       actorId: 'system',
       entity: 'verification',
       entityId: claimId,
       action: 'enqueue',
-      metadata: { jobId: job.id || 'unknown', anchorMetadata },
+      metadata: {
+        jobId: job.id || 'unknown',
+        priority,
+        priorityLabel,
+        anchorMetadata,
+      },
     });
 
-    return { jobId: job.id || 'unknown' };
+    return { jobId: job.id || 'unknown', priority };
   }
 
   async processVerification(
     jobData: VerificationJobData,
   ): Promise<VerificationResult> {
-    const { claimId, anchorMetadata } = jobData;
+    const { claimId, anchorMetadata, priority } = jobData;
+    const priorityLabel = VerificationPriority[priority] ?? String(priority);
 
     this.logger.log(
-      `Processing verification for claim ${claimId} in ${this.verificationMode} mode`,
+      `Processing verification for claim ${claimId} in ${this.verificationMode} mode` +
+        ` [priority=${priorityLabel}(${priority})]`,
     );
 
     const claim = await this.prisma.claim.findUnique({
@@ -274,7 +302,12 @@ export class VerificationService {
     });
 
     if (!claim) {
-      throw new NotFoundException(`Claim with ID ${claimId} not found`);
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+        404,
+        `Claim with ID ${claimId} not found`,
+        { claimId },
+      );
     }
 
     let result: VerificationResult;
@@ -302,6 +335,7 @@ export class VerificationService {
           campaignRef: anchorMetadata.campaignRef ?? null,
           claimId: anchorMetadata.claimId ?? null,
           packageId: anchorMetadata.packageId ?? null,
+          contractId: anchorMetadata.contractId ?? null,
         }
       : null;
 
@@ -639,17 +673,34 @@ the JSON verdict.
         message: string;
       };
       if (err.response) {
-        throw new Error(
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_INVALID_RESPONSE,
+          502,
           `OCR service returned ${err.response.status}: ` +
             `${JSON.stringify(err.response.data)}`,
+          { httpStatus: err.response.status, body: err.response.data },
         );
-      } else if (err.code === 'ECONNREFUSED') {
-        throw new Error(
+      } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_SERVICE_UNAVAILABLE,
+          503,
           `OCR service unavailable at ${this.aiServiceUrl}. ` +
             `Is the Python ai-service running?`,
+          { serviceUrl: this.aiServiceUrl },
+        );
+      } else if (err.message?.includes('timeout') || err.code === 'ETIMEDOUT') {
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_SERVICE_TIMEOUT,
+          504,
+          `OCR service call timed out: ${err.message}`,
+          { serviceUrl: this.aiServiceUrl },
         );
       } else {
-        throw new Error(`OCR service call failed: ${err.message}`);
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_SERVICE_UNAVAILABLE,
+          503,
+          `OCR service call failed: ${err.message}`,
+        );
       }
     }
   }
@@ -903,7 +954,12 @@ the JSON verdict.
   async findOne(id: string) {
     const claim = await this.prisma.claim.findUnique({ where: { id } });
     if (!claim) {
-      throw new NotFoundException(`Claim with ID ${id} not found`);
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+        404,
+        `Claim with ID ${id} not found`,
+        { claimId: id },
+      );
     }
     return claim;
   }
@@ -1002,12 +1058,57 @@ the JSON verdict.
       this.verificationQueue.getFailedCount(),
     ]);
 
+    // Build a per-priority breakdown of waiting jobs.
+    // BullMQ stores waiting jobs with their priority in the payload; we iterate
+    // the waiting set and tally by the `priority` field we embed in jobData.
+    const waitingJobs = await this.verificationQueue.getWaiting(0, -1);
+    const priorityCounts: Record<string, number> = {
+      [VerificationPriority.URGENT]: 0,
+      [VerificationPriority.HIGH]: 0,
+      [VerificationPriority.NORMAL]: 0,
+      [VerificationPriority.LOW]: 0,
+    };
+    for (const job of waitingJobs) {
+      const p =
+        (job.data as VerificationJobData).priority ??
+        DEFAULT_VERIFICATION_PRIORITY;
+      if (p in priorityCounts) {
+        priorityCounts[p]++;
+      }
+    }
+
+    const breakdown = {
+      urgent: priorityCounts[VerificationPriority.URGENT],
+      high: priorityCounts[VerificationPriority.HIGH],
+      normal: priorityCounts[VerificationPriority.NORMAL],
+      low: priorityCounts[VerificationPriority.LOW],
+    };
+
+    // Keep Prometheus gauges in sync with the current snapshot.
+    this.metricsService.setVerificationQueueWaitingByPriority(
+      'URGENT',
+      breakdown.urgent,
+    );
+    this.metricsService.setVerificationQueueWaitingByPriority(
+      'HIGH',
+      breakdown.high,
+    );
+    this.metricsService.setVerificationQueueWaitingByPriority(
+      'NORMAL',
+      breakdown.normal,
+    );
+    this.metricsService.setVerificationQueueWaitingByPriority(
+      'LOW',
+      breakdown.low,
+    );
+
     return {
       waiting,
       active,
       completed,
       failed,
       total: waiting + active + completed + failed,
+      priorityBreakdown: breakdown,
     };
   }
 
@@ -1096,12 +1197,20 @@ the JSON verdict.
         typeof parsed.createdAt !== 'string' ||
         typeof parsed.id !== 'string'
       ) {
-        throw new BadRequestException('Invalid review queue cursor');
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+          400,
+          'Invalid review queue cursor',
+        );
       }
 
       const createdAt = new Date(parsed.createdAt);
       if (Number.isNaN(createdAt.getTime())) {
-        throw new BadRequestException('Invalid review queue cursor');
+        throw new AppException(
+          INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+          400,
+          'Invalid review queue cursor',
+        );
       }
 
       return {
@@ -1109,11 +1218,15 @@ the JSON verdict.
         id: parsed.id,
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (error instanceof AppException) {
         throw error;
       }
 
-      throw new BadRequestException('Invalid review queue cursor');
+      throw new AppException(
+        INTEGRATION_ERROR_CODES.AI_VERIFICATION_FAILED,
+        400,
+        'Invalid review queue cursor',
+      );
     }
   }
 }

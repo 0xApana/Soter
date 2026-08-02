@@ -303,6 +303,7 @@ pub fn get_authorization_info(
         return (true, Some(Symbol::new(env, "primary_recipient")));
     }
 
+    // Check delegate status
     let delegate_info = get_delegate_info(env, package_id);
     match delegate_info {
         Some((delegate, expires_at)) => {

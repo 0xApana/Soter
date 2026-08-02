@@ -284,7 +284,7 @@ fn test_cannot_set_delegate_for_claimed_package() {
     let (_env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
 
-    let token = token_client.address.clone();
+    let token = token_client.address;
     create_package(&client, &admin, &recipient, &token, pkg_id);
 
     // Claim first

@@ -19,6 +19,7 @@ name = "aid_escrow"
 version = "0.2.0"
 dependencies = [
  "ed25519-dalek",
+ "ethnum",
  "rand",
  "serde_json",
  "soroban-sdk",
