@@ -62,16 +62,10 @@ fn create_package(
 
 #[test]
 fn test_set_and_query_delegate() {
-    let (env, client, admin, recipient, delegate, _token_client, _) = setup();
+    let (_env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
-    create_package(
-        &client,
-        &admin,
-        &recipient,
-        &env.register_stellar_asset_contract_v2(admin.clone())
-            .address(),
-        pkg_id,
-    );
+    let token = token_client.address.clone();
+    create_package(&client, &admin, &recipient, &token, pkg_id);
 
     // Query before setting - should be None
     assert_eq!(client.get_delegate(&pkg_id), None);
@@ -93,16 +87,10 @@ fn test_set_and_query_delegate() {
 
 #[test]
 fn test_set_delegate_with_expiry_and_query() {
-    let (env, client, admin, recipient, delegate, _token_client, _) = setup();
+    let (env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
-    create_package(
-        &client,
-        &admin,
-        &recipient,
-        &env.register_stellar_asset_contract_v2(admin.clone())
-            .address(),
-        pkg_id,
-    );
+    let token = token_client.address.clone();
+    create_package(&client, &admin, &recipient, &token, pkg_id);
 
     let expires_at = 2000u64;
     client.set_delegate_with_expiry(&admin, &pkg_id, &delegate, &expires_at);
@@ -123,16 +111,10 @@ fn test_set_delegate_with_expiry_and_query() {
 
 #[test]
 fn test_remove_delegate() {
-    let (env, client, admin, recipient, delegate, _token_client, _) = setup();
+    let (_env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
-    create_package(
-        &client,
-        &admin,
-        &recipient,
-        &env.register_stellar_asset_contract_v2(admin.clone())
-            .address(),
-        pkg_id,
-    );
+    let token = token_client.address.clone();
+    create_package(&client, &admin, &recipient, &token, pkg_id);
 
     client.set_delegate(&admin, &pkg_id, &delegate);
     assert_eq!(client.get_delegate(&pkg_id), Some(delegate.clone()));
@@ -144,16 +126,10 @@ fn test_remove_delegate() {
 
 #[test]
 fn test_delegate_history_tracking() {
-    let (env, client, admin, recipient, delegate, _token_client, _) = setup();
+    let (env, client, admin, recipient, delegate, token_client, _) = setup();
     let pkg_id = 1;
-    create_package(
-        &client,
-        &admin,
-        &recipient,
-        &env.register_stellar_asset_contract_v2(admin.clone())
-            .address(),
-        pkg_id,
-    );
+    let token = token_client.address.clone();
+    create_package(&client, &admin, &recipient, &token, pkg_id);
 
     let delegate2 = Address::generate(&env);
 
@@ -321,16 +297,10 @@ fn test_cannot_set_delegate_for_claimed_package() {
 
 #[test]
 fn test_cannot_set_delegate_to_recipient() {
-    let (env, client, admin, recipient, _delegate, _token_client, _) = setup();
+    let (_env, client, admin, recipient, _delegate, token_client, _) = setup();
     let pkg_id = 1;
-    create_package(
-        &client,
-        &admin,
-        &recipient,
-        &env.register_stellar_asset_contract_v2(admin.clone())
-            .address(),
-        pkg_id,
-    );
+    let token = token_client.address.clone();
+    create_package(&client, &admin, &recipient, &token, pkg_id);
 
     let result = client.try_set_delegate(&admin, &pkg_id, &recipient);
     assert_eq!(result, Err(Ok(Error::InvalidState)));
@@ -338,12 +308,10 @@ fn test_cannot_set_delegate_to_recipient() {
 
 #[test]
 fn test_cleanup_expired_delegates() {
-    let (env, client, admin, recipient, delegate1, _token_client, _) = setup();
+    let (env, client, admin, recipient, delegate1, token_client, _) = setup();
     let delegate2 = Address::generate(&env);
 
-    let token = env
-        .register_stellar_asset_contract_v2(admin.clone())
-        .address();
+    let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, 1);
     create_package(&client, &admin, &recipient, &token, 2);
 

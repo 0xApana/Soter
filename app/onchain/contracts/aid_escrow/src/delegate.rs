@@ -354,8 +354,8 @@ pub fn clear_delegate(env: &Env, package_id: u64) {
 /// Cleanup expired delegates to reclaim storage.
 /// This should be called periodically or as part of maintenance operations.
 #[allow(dead_code)]
-pub fn cleanup_expired_delegates(env: &Env, caller: &Address) -> Result<u32, Error> {
-    caller.require_auth();
+pub fn cleanup_expired_delegates(env: &Env, _caller: &Address) -> Result<u32, Error> {
+    // Authentication is enforced by the calling contract entry point.
 
     let mut delegate_map = load_delegates(env);
     let mut expiry_map = load_delegate_expiry(env);

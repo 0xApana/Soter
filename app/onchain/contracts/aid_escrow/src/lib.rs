@@ -1496,7 +1496,11 @@ impl AidEscrow {
         }
         .publish(env);
 
-        // If claimed by delegate, emit DelegateClaimed event and clear delegate
+        // A claim finalizes the package; clear any registered delegate so it
+        // cannot be reused, regardless of whether the recipient or a delegate claimed.
+        crate::delegate::clear_delegate(env, package_id);
+
+        // If claimed by delegate, emit DelegateClaimed event
         if is_delegate {
             // Emit DelegateClaimed event
             DelegateClaimed {
@@ -1508,9 +1512,6 @@ impl AidEscrow {
                 timestamp: now,
             }
             .publish(env);
-
-            // Clear the delegate and emit DelegateRevoked event
-            crate::delegate::clear_delegate(env, package_id);
 
             // Emit DelegateRevoked with claimant as actor (system-initiated on claim)
             DelegateRevoked {
