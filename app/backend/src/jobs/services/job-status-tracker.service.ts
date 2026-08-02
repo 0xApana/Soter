@@ -104,8 +104,8 @@ export class JobStatusTracker {
       const event: JobStatusEvent = {
         eventId: uuidv4(),
         job: jobStatus,
-        userId: payload.metadata?.userId as string,
-        correlationId: payload.metadata?.correlationId as string,
+        userId: payload.metadata?.userId,
+        correlationId: payload.metadata?.correlationId,
         emittedAt: now,
         isTerminal,
         metadata: {
@@ -134,12 +134,16 @@ export class JobStatusTracker {
    * Fires when a job is added to the queue
    */
   @OnEvent('bull:job-created')
-  async onJobCreated(payload: { jobId: string; jobType: JobType; metadata?: Record<string, unknown> }): Promise<void> {
+  async onJobCreated(payload: {
+    jobId: string;
+    jobType: JobType;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
     await this.emitJobStatus({
       jobId: payload.jobId,
       jobType: payload.jobType,
       status: JobStatus.PENDING,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -148,13 +152,17 @@ export class JobStatusTracker {
    * Fires when a worker starts processing a job
    */
   @OnEvent('bull:job-started')
-  async onJobStarted(payload: { jobId: string; jobType: JobType; metadata?: Record<string, unknown> }): Promise<void> {
+  async onJobStarted(payload: {
+    jobId: string;
+    jobType: JobType;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
     await this.emitJobStatus({
       jobId: payload.jobId,
       jobType: payload.jobType,
       status: JobStatus.PROCESSING,
       progress: 0,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -174,7 +182,7 @@ export class JobStatusTracker {
       jobType: payload.jobType,
       status: JobStatus.PROCESSING,
       progress: payload.progress,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -195,7 +203,7 @@ export class JobStatusTracker {
       status: JobStatus.COMPLETED,
       progress: 100,
       result: payload.result,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -219,7 +227,7 @@ export class JobStatusTracker {
       error: payload.error,
       attemptsMade: payload.attemptsMade,
       maxRetries: payload.maxRetries,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -241,7 +249,7 @@ export class JobStatusTracker {
       status: JobStatus.RETRYING,
       attemptsMade: payload.attemptsMade,
       maxRetries: payload.maxRetries,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -250,12 +258,16 @@ export class JobStatusTracker {
    * Fires when a job is manually cancelled
    */
   @OnEvent('bull:job-cancelled')
-  async onJobCancelled(payload: { jobId: string; jobType: JobType; metadata?: Record<string, unknown> }): Promise<void> {
+  async onJobCancelled(payload: {
+    jobId: string;
+    jobType: JobType;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
     await this.emitJobStatus({
       jobId: payload.jobId,
       jobType: payload.jobType,
       status: JobStatus.CANCELLED,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -275,7 +287,7 @@ export class JobStatusTracker {
       status: JobStatus.COMPLETED,
       progress: 100,
       result: payload.result,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 
@@ -293,7 +305,7 @@ export class JobStatusTracker {
       jobType: payload.jobType,
       status: JobStatus.FAILED,
       error: payload.error,
-      metadata: payload.metadata as JobStatusPayload['metadata'],
+      metadata: payload.metadata,
     });
   }
 

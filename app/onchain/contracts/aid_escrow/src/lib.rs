@@ -40,6 +40,7 @@ const KEY_PAUSE_CREATE: Symbol = symbol_short!("p_create");
 const KEY_PAUSE_CLAIM: Symbol = symbol_short!("p_claim");
 const KEY_PAUSE_WITHDRAW: Symbol = symbol_short!("p_wdrw");
 const KEY_TOTAL_CLAIMED: Symbol = symbol_short!("claimed"); // Map<Address, i128>
+const KEY_PENDING_ADMIN: Symbol = symbol_short!("pend_adm");
 const META_MERKLE_ROOT_KEY: &str = "merkle_root";
 
 // --- Data Types ---
@@ -107,6 +108,8 @@ pub enum Error {
     InvalidProof = 16,
     InvalidToken = 17,
     TokenTransferFailed = 18,
+    NoPendingTransfer = 19,
+    InvalidPendingAdmin = 20,
 }
 
 // --- Contract Events (indexer-friendly; stable topics & payloads) ---
@@ -137,6 +140,18 @@ pub struct PackageClaimed {
     pub amount: i128,
     pub actor: Address,
     pub timestamp: u64,
+    /// Optional off-chain receipt hash for anchoring external records.
+    /// Empty string when not provided.
+    pub receipt_hash: String,
+}
+
+#[contractevent]
+pub struct PackageClaimedByRelayer {
+    pub package_id: u64,
+    pub recipient: Address,
+    pub relayer: Address,
+    pub amount: i128,
+    pub timestamp: u64,
 }
 
 #[contractevent]
@@ -146,6 +161,9 @@ pub struct PackageDisbursed {
     pub amount: i128,
     pub actor: Address,
     pub timestamp: u64,
+    /// Optional off-chain receipt hash for anchoring external records.
+    /// Empty string when not provided.
+    pub receipt_hash: String,
 }
 
 #[contractevent]
@@ -245,6 +263,44 @@ pub struct DelegateClaimed {
     pub timestamp: u64,
 }
 
+/// Emitted when the current admin nominates a pending admin.
+#[contractevent]
+pub struct AdminTransferInitiated {
+    pub admin: Address,
+    pub pending_admin: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when the pending admin accepts the admin role.
+#[contractevent]
+pub struct AdminTransferAccepted {
+    pub admin: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when the current admin cancels a pending admin transfer.
+#[contractevent]
+pub struct AdminTransferCancelled {
+    pub admin: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when a token is added to the allowed tokens allowlist.
+#[contractevent]
+pub struct TokenAdded {
+    pub admin: Address,
+    pub token: Address,
+    pub timestamp: u64,
+}
+
+/// Emitted when a token is removed from the allowed tokens allowlist.
+#[contractevent]
+pub struct TokenRemoved {
+    pub admin: Address,
+    pub token: Address,
+    pub timestamp: u64,
+}
+
 #[contract]
 pub struct AidEscrow;
 
@@ -283,6 +339,92 @@ impl AidEscrow {
             .instance()
             .get(&KEY_ADMIN)
             .ok_or(Error::NotInitialized)
+    }
+
+    /// Returns the pending admin address, if one has been nominated.
+    ///
+    /// Returns `None` if no transfer is in progress.
+    pub fn get_pending_admin(env: Env) -> Option<Address> {
+        env.storage().instance().get(&KEY_PENDING_ADMIN)
+    }
+
+    /// Admin-only. Nominates `new_admin` as the pending administrator.
+    /// The current admin must explicitly call this to initiate a transfer.
+    /// The pending admin must then call `accept_admin()` to complete it.
+    ///
+    /// # Arguments
+    /// * `new_admin` — The address to nominate as the next admin.
+    ///
+    /// # Errors
+    /// Returns `Error::NotInitialized` if the contract has not been initialized.
+    /// Returns `Error::InvalidPendingAdmin` if `new_admin` equals the current admin.
+    pub fn transfer_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        if new_admin == admin {
+            return Err(Error::InvalidPendingAdmin);
+        }
+
+        env.storage().instance().set(&KEY_PENDING_ADMIN, &new_admin);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferInitiated {
+            admin,
+            pending_admin: new_admin,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Pending admin-only. Accepts the admin role and completes the transfer.
+    /// Only the address nominated via `transfer_admin()` may call this.
+    ///
+    /// # Errors
+    /// Returns `Error::NoPendingTransfer` if no transfer is in progress.
+    /// Returns `Error::NotAuthorized` if the caller is not the pending admin.
+    pub fn accept_admin(env: Env) -> Result<(), Error> {
+        let pending_admin: Address = env
+            .storage()
+            .instance()
+            .get(&KEY_PENDING_ADMIN)
+            .ok_or(Error::NoPendingTransfer)?;
+
+        pending_admin.require_auth();
+
+        env.storage().instance().set(&KEY_ADMIN, &pending_admin);
+        env.storage().instance().remove(&KEY_PENDING_ADMIN);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferAccepted {
+            admin: pending_admin,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Admin-only. Cancels a pending admin transfer.
+    ///
+    /// # Errors
+    /// Returns `Error::NoPendingTransfer` if no transfer is in progress.
+    pub fn cancel_admin_transfer(env: Env) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        if !env.storage().instance().has(&KEY_PENDING_ADMIN) {
+            return Err(Error::NoPendingTransfer);
+        }
+
+        env.storage().instance().remove(&KEY_PENDING_ADMIN);
+
+        let timestamp = env.ledger().timestamp();
+        AdminTransferCancelled { admin, timestamp }.publish(&env);
+
+        Ok(())
     }
 
     /// Returns the current contract version.
@@ -892,6 +1034,90 @@ impl AidEscrow {
         }
     }
 
+    /// Claim a package through a relayer who pays the transaction costs.
+    ///
+    /// The `claimant` must be the package recipient or an authorized delegate.
+    /// Both the `claimant` and the `relayer` must have signed the transaction.
+    /// The relayer's address is recorded in the event for off-chain identification.
+    ///
+    /// Merkle-allowlist packages cannot be claimed through this path; use
+    /// `claim_with_proof` instead.
+    pub fn claim_with_relayer(
+        env: Env,
+        id: u64,
+        claimant: Address,
+        relayer: Address,
+    ) -> Result<(), Error> {
+        Self::check_action_paused(&env, symbol_short!("claim"))?;
+        let key = (symbol_short!("pkg"), id);
+        let mut package: Package = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::PackageNotFound)?;
+
+        if package.status != PackageStatus::Created {
+            return Err(Error::PackageNotActive);
+        }
+
+        let now = env.ledger().timestamp();
+        if now < package.claim_starts_at {
+            return Err(Error::ClaimTooEarly);
+        }
+
+        if package.expires_at > 0 && now > package.expires_at {
+            return Err(Error::PackageExpired);
+        }
+
+        if Self::merkle_root_from_metadata(&env, &package.metadata).is_some() {
+            return Err(Error::InvalidProof);
+        }
+
+        if !delegate::is_authorised_claimer(&env, id, &package.recipient, &claimant) {
+            return Err(Error::NotAuthorized);
+        }
+
+        claimant.require_auth();
+        relayer.require_auth();
+
+        delegate::clear_delegate(&env, id);
+
+        Self::transfer_token(
+            &env,
+            &package.token,
+            &env.current_contract_address(),
+            &claimant,
+            &package.amount,
+        )?;
+
+        package.status = PackageStatus::Claimed;
+        env.storage().persistent().set(&key, &package);
+
+        Self::decrement_locked(&env, &package.token, package.amount);
+
+        let mut claimed_map: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&KEY_TOTAL_CLAIMED)
+            .unwrap_or(Map::new(&env));
+        let current_total = claimed_map.get(package.token.clone()).unwrap_or(0);
+        claimed_map.set(package.token.clone(), current_total + package.amount);
+        env.storage()
+            .instance()
+            .set(&KEY_TOTAL_CLAIMED, &claimed_map);
+
+        PackageClaimedByRelayer {
+            package_id: id,
+            recipient: claimant.clone(),
+            relayer,
+            amount: package.amount,
+            timestamp: now,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
     // --- Admin Actions ---
 
     /// Admin manually triggers disbursement (overrides recipient claim need, strictly checks status).
@@ -928,12 +1154,14 @@ impl AidEscrow {
         Self::decrement_locked(&env, &package.token, package.amount);
 
         let timestamp = env.ledger().timestamp();
+        let receipt_hash = Self::receipt_hash_from_metadata(&env, &package.metadata);
         PackageDisbursed {
             package_id: id,
             recipient: package.recipient.clone(),
             amount: package.amount,
             actor: admin.clone(),
             timestamp,
+            receipt_hash,
         }
         .publish(&env);
 
@@ -1360,16 +1588,23 @@ impl AidEscrow {
         // Check if claimant is a delegate (not the recipient)
         let is_delegate = claimant != &package.recipient;
 
+        let receipt_hash = Self::receipt_hash_from_metadata(env, &package.metadata);
+
         PackageClaimed {
             package_id,
             recipient: payout_recipient.clone(),
             amount: package.amount,
             actor: payout_recipient.clone(),
             timestamp: now,
+            receipt_hash,
         }
         .publish(env);
 
-        // If claimed by delegate, emit DelegateClaimed event and clear delegate
+        // A claim finalizes the package; clear any registered delegate so it
+        // cannot be reused, regardless of whether the recipient or a delegate claimed.
+        crate::delegate::clear_delegate(env, package_id);
+
+        // If claimed by delegate, emit DelegateClaimed event
         if is_delegate {
             // Emit DelegateClaimed event
             DelegateClaimed {
@@ -1381,9 +1616,6 @@ impl AidEscrow {
                 timestamp: now,
             }
             .publish(env);
-
-            // Clear the delegate and emit DelegateRevoked event
-            crate::delegate::clear_delegate(env, package_id);
 
             // Emit DelegateRevoked with claimant as actor (system-initiated on claim)
             DelegateRevoked {
@@ -1397,6 +1629,11 @@ impl AidEscrow {
         }
 
         Ok(())
+    }
+
+    fn receipt_hash_from_metadata(env: &Env, metadata: &Map<Symbol, String>) -> String {
+        let key = Symbol::new(env, "receipt_hash");
+        metadata.get(key).unwrap_or(String::from_str(env, ""))
     }
 
     fn merkle_root_from_metadata(env: &Env, metadata: &Map<Symbol, String>) -> Option<[u8; 32]> {
@@ -1899,6 +2136,105 @@ impl AidEscrow {
         package_id: u64,
     ) -> Vec<crate::delegate::DelegateHistory> {
         crate::delegate::get_delegate_history(&env, package_id)
+    }
+
+    // --- Token Allowlist Management ---
+
+    /// Admin-only. Adds a token to the allowed tokens list.
+    /// Validates the token contract interface before adding.
+    /// Emits a `TokenAdded` event.
+    ///
+    /// # Arguments
+    /// * `token` — Address of the token contract to add.
+    ///
+    /// # Errors
+    /// Returns `Error::NotAuthorized` if caller is not the admin.
+    /// Returns `Error::InvalidToken` if the token contract is invalid.
+    /// Returns `Error::InvalidState` if the token is already in the list.
+    pub fn add_allowed_token(env: Env, token: Address) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        // Validate the token contract
+        Self::validate_token(&env, &token)?;
+
+        // Read current config
+        let mut config = Self::get_config(env.clone());
+
+        // Check if token already in list
+        if config.allowed_tokens.contains(token.clone()) {
+            return Err(Error::InvalidState);
+        }
+
+        // Add the token
+        config.allowed_tokens.push_back(token.clone());
+        env.storage().instance().set(&KEY_CONFIG, &config);
+
+        // Emit event
+        let timestamp = env.ledger().timestamp();
+        TokenAdded {
+            admin,
+            token,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Admin-only. Removes a token from the allowed tokens list.
+    /// Emits a `TokenRemoved` event.
+    ///
+    /// # Arguments
+    /// * `token` — Address of the token contract to remove.
+    ///
+    /// # Errors
+    /// Returns `Error::NotAuthorized` if caller is not the admin.
+    /// Returns `Error::InvalidState` if the token is not in the list.
+    pub fn remove_allowed_token(env: Env, token: Address) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        // Read current config
+        let mut config = Self::get_config(env.clone());
+
+        // Check if token is not in the list (error)
+        let mut found = false;
+        let mut new_tokens = Vec::new(&env);
+        for i in 0..config.allowed_tokens.len() {
+            let t = config.allowed_tokens.get(i).unwrap();
+            if t == token {
+                found = true;
+            } else {
+                new_tokens.push_back(t);
+            }
+        }
+
+        if !found {
+            return Err(Error::InvalidState);
+        }
+
+        // Update config with new token list
+        config.allowed_tokens = new_tokens;
+        env.storage().instance().set(&KEY_CONFIG, &config);
+
+        // Emit event
+        let timestamp = env.ledger().timestamp();
+        TokenRemoved {
+            admin,
+            token,
+            timestamp,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Cleanup expired delegates to reclaim storage.
+    /// Called periodically or as part of maintenance operations.
+    pub fn cleanup_expired_delegates(env: Env, admin: Address) -> Result<u32, Error> {
+        admin.require_auth();
+        crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
 }
 
