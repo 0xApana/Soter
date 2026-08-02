@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-
 export class ClaimTimelineEntryDto {
   @ApiProperty({ description: 'Status the claim transitioned to' })
   status: string;
@@ -144,4 +143,3 @@ export class SendReceiptShareDto {
   })
   message?: string;
 }
-
