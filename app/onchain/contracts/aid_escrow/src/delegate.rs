@@ -300,7 +300,7 @@ pub fn get_authorization_info(
 ) -> (bool, Option<Symbol>) {
     // Check if claimer is primary recipient
     if claimer == primary_recipient {
-        return (true, Some(Symbol::new(env, "Primary recipient")));
+        return (true, Some(Symbol::new(env, "primary_recipient")));
     }
 
     // Check delegate status
@@ -310,21 +310,18 @@ pub fn get_authorization_info(
             if &delegate == claimer {
                 if let Some(expiry) = expires_at {
                     if expiry > env.ledger().timestamp() {
-                        (
-                            true,
-                            Some(Symbol::new(env, "Delegate (expires at timestamp)")),
-                        )
+                        (true, Some(Symbol::new(env, "delegate_with_expiry")))
                     } else {
-                        (false, Some(Symbol::new(env, "Delegate expired")))
+                        (false, Some(Symbol::new(env, "delegate_expired")))
                     }
                 } else {
-                    (true, Some(Symbol::new(env, "Delegate (no expiration)")))
+                    (true, Some(Symbol::new(env, "delegate_no_expiry")))
                 }
             } else {
-                (false, Some(Symbol::new(env, "Not the registered delegate")))
+                (false, Some(Symbol::new(env, "not_registered_delegate")))
             }
         }
-        None => (false, Some(Symbol::new(env, "No delegate registered"))),
+        None => (false, Some(Symbol::new(env, "no_delegate_registered"))),
     }
 }
 
@@ -349,7 +346,7 @@ pub fn clear_delegate(env: &Env, package_id: u64) {
             package_id,
             Some(delegate),
             &env.current_contract_address(),
-            Symbol::new(env, "Delegate cleared after claim"),
+            Symbol::new(env, "delegate_cleared"),
         );
     }
 }
@@ -567,22 +564,19 @@ mod tests {
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &recipient);
             assert!(authorized);
-            assert_eq!(reason, Some(Symbol::new(&env, "Primary recipient")));
+            assert_eq!(reason, Some(Symbol::new(&env, "primary_recipient")));
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &delegate);
             assert!(authorized);
             let reason_str = reason.unwrap();
             assert!(
-                reason_str == Symbol::new(&env, "Delegate (expires at timestamp)")
-                    || reason_str == Symbol::new(&env, "Delegate (no expiration)")
+                reason_str == Symbol::new(&env, "delegate_with_expiry")
+                    || reason_str == Symbol::new(&env, "delegate_no_expiry")
             );
 
             let (authorized, reason) = get_authorization_info(&env, 1, &recipient, &stranger);
             assert!(!authorized);
-            assert_eq!(
-                reason,
-                Some(Symbol::new(&env, "Not the registered delegate"))
-            );
+            assert_eq!(reason, Some(Symbol::new(&env, "not_registered_delegate")));
         });
     }
 

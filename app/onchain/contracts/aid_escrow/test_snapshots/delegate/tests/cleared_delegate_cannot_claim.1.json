@@ -6,6 +6,7 @@
   },
   "auth": [
     [],
+    [],
     []
   ],
   "ledger": {
@@ -118,6 +119,58 @@
                           },
                           "val": {
                             "symbol": "delegate_set"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "changed_at"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "changed_by"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "new_delegate"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "package_id"
+                          },
+                          "val": {
+                            "u64": "7"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "previous_delegate"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "reason"
+                          },
+                          "val": {
+                            "symbol": "delegate_cleared"
                           }
                         }
                       ]

@@ -2028,7 +2028,7 @@ impl AidEscrow {
         crate::delegate::get_delegate_history(&env, package_id)
     }
 
-// --- Token Allowlist Management ---
+    // --- Token Allowlist Management ---
 
     /// Admin-only. Adds a token to the allowed tokens list.
     /// Validates the token contract interface before adding.
@@ -2122,14 +2122,10 @@ impl AidEscrow {
 
     /// Cleanup expired delegates to reclaim storage.
     /// Called periodically or as part of maintenance operations.
-    pub fn cleanup_expired_delegates(
-        env: Env,
-        admin: Address,
-    ) -> Result<u32, Error> {
+    pub fn cleanup_expired_delegates(env: Env, admin: Address) -> Result<u32, Error> {
         admin.require_auth();
         crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
-    
 }
 
 // --- Tests ---
