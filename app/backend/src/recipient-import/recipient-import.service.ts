@@ -302,7 +302,7 @@ export class RecipientImportService {
   getBatchSize(): number {
     return BATCH_SIZE;
   }
-}
+
   async generateReportCsv(jobId: string): Promise<string> {
     const job = await this.prisma.importJob.findUnique({
       where: { id: jobId },
@@ -328,7 +328,7 @@ export class RecipientImportService {
     const header = 'row,field,message,value\n';
 
     const rows = errors
-      .map((err) => {
+      .map(err => {
         const rowNum = err.row ?? '';
         const field = (err.field ?? '').replace(/"/g, '""');
         const message = (err.message ?? '').replace(/"/g, '""');

@@ -85,7 +85,9 @@ export class RecipientImportController {
     const uploadDir = join(tmpdir(), 'soter-imports');
     try {
       mkdirSync(uploadDir, { recursive: true });
-    } catch {}
+    } catch {
+      // Ignore directory already exists error
+    }
 
     const filePath = join(uploadDir, `${Date.now()}-${file.originalname}`);
     writeFileSync(filePath, file.buffer);
@@ -143,7 +145,8 @@ export class RecipientImportController {
     @Param('jobId') jobId: string,
     @Res() res: Response,
   ): Promise<void> {
-    const csvContent = await this.recipientImportService.generateReportCsv(jobId);
+    const csvContent =
+      await this.recipientImportService.generateReportCsv(jobId);
 
     const filename = `import-report-${jobId}.csv`;
 
