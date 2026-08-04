@@ -1,15 +1,19 @@
+-- CreateEnum
+CREATE TYPE "DeliveryAttemptOutcome" AS ENUM ('success', 'failed');
+
 -- CreateTable
 CREATE TABLE "NotificationDeliveryAttempt" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "outboxId" TEXT NOT NULL,
     "attemptNumber" INTEGER NOT NULL,
-    "outcome" TEXT NOT NULL,
+    "outcome" "DeliveryAttemptOutcome" NOT NULL,
     "failureCategory" TEXT,
     "errorMessage" TEXT,
-    "startedAt" DATETIME NOT NULL,
-    "completedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "startedAt" TIMESTAMP(3) NOT NULL,
+    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "durationMs" INTEGER,
-    CONSTRAINT "NotificationDeliveryAttempt_outboxId_fkey" FOREIGN KEY ("outboxId") REFERENCES "NotificationOutbox" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+
+    CONSTRAINT "NotificationDeliveryAttempt_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -23,3 +27,6 @@ CREATE INDEX "NotificationDeliveryAttempt_failureCategory_idx" ON "NotificationD
 
 -- CreateIndex
 CREATE INDEX "NotificationDeliveryAttempt_startedAt_idx" ON "NotificationDeliveryAttempt"("startedAt");
+
+-- AddForeignKey
+ALTER TABLE "NotificationDeliveryAttempt" ADD CONSTRAINT "NotificationDeliveryAttempt_outboxId_fkey" FOREIGN KEY ("outboxId") REFERENCES "NotificationOutbox"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
