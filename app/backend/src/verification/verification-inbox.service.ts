@@ -59,8 +59,8 @@ export class VerificationInboxService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    // Optional so existing unit tests and consumers that construct this
-    // service without the SSE hub keep working unchanged.
+    // Optional so consumers that construct this service without the SSE hub
+    // keep working unchanged; when present, reviewer clients get live updates.
     @Optional()
     private readonly inboxEvents?: VerificationInboxEventsService,
   ) {}
@@ -223,17 +223,6 @@ export class VerificationInboxService {
       },
     });
 
-    // Fan out to connected SSE inbox streams. Best effort and in-process only:
-    // the audit trail above remains the source of truth.
-    this.inboxEvents?.publish('inbox.item.updated', {
-      verificationId: id,
-      status: updated.status,
-      previousStatus: verification.status,
-      reviewedBy: updated.reviewedBy,
-      reviewedAt: updated.reviewedAt?.toISOString() ?? null,
-      deepLink: `/verification/${id}`,
-    });
-
     // Persist optional internal note
     if (internalNote) {
       await this.prisma.internalNote.create({
@@ -246,6 +235,16 @@ export class VerificationInboxService {
         },
       });
     }
+
+    // Fan out the review decision to connected reviewer clients.
+    this.inboxEvents?.publish('inbox.item.updated', {
+      verificationId: updated.id,
+      status: updated.status,
+      previousStatus: verification.status,
+      reviewedBy: updated.reviewedBy,
+      reviewedAt: updated.reviewedAt?.toISOString() ?? null,
+      deepLink: `/verification/${updated.id}`,
+    });
 
     return updated;
   }
@@ -389,6 +388,24 @@ export class VerificationInboxService {
         failed.push({
           id,
           error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // A bulk action mutates the queue itself, so emit a queue-level event per
+    // affected item in addition to the per-item review events above. Clients
+    // tracking queue composition can listen for `inbox.queue.changed` alone.
+    if (succeeded.length > 0) {
+      const emittedAt = new Date().toISOString();
+
+      for (const item of succeeded) {
+        this.inboxEvents?.publish('inbox.queue.changed', {
+          verificationId: item.id,
+          status: item.status,
+          previousStatus: null,
+          reviewedBy: reviewerId,
+          reviewedAt: emittedAt,
+          deepLink: `/verification/${item.id}`,
         });
       }
     }
