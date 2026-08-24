@@ -210,10 +210,11 @@ _inflight_lock = asyncio.Lock()
 async def _cleanup_inflight(cache_key: str, delay_seconds: float = 1.0):
     """
     Clean up in-flight computation tracking after a delay.
-    
+
     Args:
         cache_key: The cache key to clean up
-        delay_seconds: How long to wait before cleaning up (to allow waiting requests to get results)
+        delay_seconds: How long to wait before cleaning up (to allow waiting
+            requests to get results)
     """
     await asyncio.sleep(delay_seconds)
     async with _inflight_lock:

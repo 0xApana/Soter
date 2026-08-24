@@ -32,23 +32,23 @@ class TestCacheStampedePrevention:
         # Temporarily inject cache into function's closure
         with patch("main.app") as mock_app:
             mock_app.state.cache = mock_cache
-            
+
             # Launch multiple concurrent calls
             tasks = []
             for i in range(5):
                 task = asyncio.create_task(test_func(arg1="value1"))
                 tasks.append(task)
-            
+
             # Wait for all tasks to complete
             results = await asyncio.gather(*tasks)
-            
+
             # Verify only one call was made to the underlying function
             assert call_count == 1, f"Expected 1 call, got {call_count}"
-            
+
             # All tasks should get the same result
             for result in results:
                 assert result == "result_value1"
-            
+
             # Verify cache.set was called exactly once
             assert mock_cache.set.call_count == 1
 
@@ -70,18 +70,18 @@ class TestCacheStampedePrevention:
 
         with patch("main.app") as mock_app:
             mock_app.state.cache = mock_cache
-            
+
             # Launch multiple concurrent calls
             tasks = []
             for i in range(5):
                 task = asyncio.create_task(test_func(arg1="value1"))
                 tasks.append(task)
-            
+
             results = await asyncio.gather(*tasks)
-            
+
             # Function should not be called at all (cache hit)
             assert call_count == 0
-            
+
             # All tasks should get cached result
             for result in results:
                 assert result == "cached_result"
@@ -107,16 +107,16 @@ class TestCacheStampedePrevention:
 
         with patch("main.app") as mock_app:
             mock_app.state.cache = mock_cache
-            
+
             # First call should fail
             with pytest.raises(ValueError, match="First call fails"):
                 await test_func(arg1="value1")
-            
+
             assert call_count == 1
-            
+
             # Wait for error cleanup (errors are cleaned up faster)
             await asyncio.sleep(0.15)
-            
+
             # Second call should retry and succeed
             result = await test_func(arg1="value1")
             assert call_count == 2
@@ -141,18 +141,18 @@ class TestCacheStampedePrevention:
 
         with patch("main.app") as mock_app:
             mock_app.state.cache = mock_cache
-            
+
             # Make a call
             result1 = await test_func(arg1="value1")
             assert result1 == "result_value1"
             assert call_count == 1
-            
+
             # Wait for cleanup
             await asyncio.sleep(1.1)
-            
+
             # Reset mock to return cached value
             mock_cache.get.return_value = "cached_result"
-            
+
             # Make another call - should hit cache now
             result2 = await test_func(arg1="value1")
             assert result2 == "cached_result"
@@ -164,12 +164,12 @@ class TestCacheStampedePrevention:
         mock_cache = Mock()
         mock_cache.enabled = True
         mock_cache.get.return_value = None
-        
+
         # Mock generate_key to return different keys for different args
         def mock_generate_key(prefix, *args, tags=None, **kwargs):
             arg_value = args[0] if args else kwargs.get('arg1', 'default')
             return f"test_key_{arg_value}"
-        
+
         mock_cache._generate_key = Mock(side_effect=mock_generate_key)
         mock_cache.set = Mock(return_value=True)
 
@@ -184,7 +184,7 @@ class TestCacheStampedePrevention:
 
         with patch("main.app") as mock_app:
             mock_app.state.cache = mock_cache
-            
+
             # Launch concurrent calls for different keys
             tasks = [
                 asyncio.create_task(test_func(arg1="value1")),
@@ -192,13 +192,13 @@ class TestCacheStampedePrevention:
                 asyncio.create_task(test_func(arg1="value1")),
                 asyncio.create_task(test_func(arg1="value2")),
             ]
-            
+
             results = await asyncio.gather(*tasks)
-            
+
             # Each unique key should have only one call
             assert call_counts_container[0]["value1"] == 1
             assert call_counts_container[0]["value2"] == 1
-            
+
             # Verify results
             assert results[0] == "result_value1"
             assert results[1] == "result_value2"
