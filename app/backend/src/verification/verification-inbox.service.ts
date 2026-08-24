@@ -2,10 +2,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Prisma, VerificationStatus } from '@prisma/client';
+import { LockEntityType } from './dto/review-lock.dto';
+import { VerificationInboxEventsService } from './verification-inbox-events.service';
 
 export interface InboxItem {
   id: string;
@@ -16,6 +19,12 @@ export interface InboxItem {
   rejectionReason: string | null;
   nextStepMessage: string | null;
   deepLink: string;
+  lock?: {
+    lockedBy: string;
+    lockedAt: Date;
+    expiresAt: Date;
+    remainingSeconds: number;
+  } | null;
 }
 
 export interface InboxResponse {
@@ -50,6 +59,10 @@ export class VerificationInboxService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    // Optional so existing unit tests and any consumer that constructs this
+    // service without the stream hub keep working unchanged.
+    @Optional()
+    private readonly inboxEvents?: VerificationInboxEventsService,
   ) {}
 
   async getInbox(
@@ -78,19 +91,52 @@ export class VerificationInboxService {
       this.prisma.verificationRequest.count({ where }),
     ]);
 
+    // Get active locks for all items in a single query
+    const itemIds = items.map(item => item.id);
+    const now = new Date();
+
+    const activeLocks = await this.prisma.reviewLock.findMany({
+      where: {
+        entityType: LockEntityType.VERIFICATION,
+        entityId: { in: itemIds },
+        status: 'active',
+        expiresAt: { gt: now },
+      },
+    });
+
+    const lockMap = new Map(activeLocks.map(lock => [lock.entityId, lock]));
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      items: items.map(item => ({
-        id: item.id,
-        status: item.status,
-        createdAt: item.createdAt,
-        reviewedAt: item.reviewedAt,
-        reviewedBy: item.reviewedBy,
-        rejectionReason: item.rejectionReason,
-        nextStepMessage: item.nextStepMessage,
-        deepLink: `/verification/${item.id}`,
-      })),
+      items: items.map(item => {
+        const lock = lockMap.get(item.id);
+        const remainingSeconds = lock
+          ? Math.max(
+              0,
+              Math.floor((lock.expiresAt.getTime() - now.getTime()) / 1000),
+            )
+          : 0;
+
+        return {
+          id: item.id,
+          status: item.status,
+          createdAt: item.createdAt,
+          reviewedAt: item.reviewedAt,
+          reviewedBy: item.reviewedBy,
+          rejectionReason: item.rejectionReason,
+          nextStepMessage: item.nextStepMessage,
+          deepLink: `/verification/${item.id}`,
+          lock: lock
+            ? {
+                lockedBy: lock.lockedBy,
+                lockedAt: lock.lockedAt,
+                expiresAt: lock.expiresAt,
+                remainingSeconds,
+              }
+            : null,
+        };
+      }),
       total,
       page,
       limit,
@@ -177,6 +223,16 @@ export class VerificationInboxService {
       },
     });
 
+    // Fan the review decision out to connected SSE clients
+    this.inboxEvents?.publish('inbox.item.updated', {
+      verificationId: id,
+      status: updated.status,
+      previousStatus: verification.status,
+      reviewedBy: updated.reviewedBy ?? null,
+      reviewedAt: updated.reviewedAt?.toISOString() ?? null,
+      deepLink: `/verification/${id}`,
+    });
+
     // Persist optional internal note
     if (internalNote) {
       await this.prisma.internalNote.create({
@@ -202,6 +258,17 @@ export class VerificationInboxService {
       throw new NotFoundException('Verification request not found');
     }
 
+    // Get active lock status
+    const now = new Date();
+    const activeLock = await this.prisma.reviewLock.findFirst({
+      where: {
+        entityType: LockEntityType.VERIFICATION,
+        entityId: id,
+        status: 'active',
+        expiresAt: { gt: now },
+      },
+    });
+
     return {
       id: verification.id,
       status: verification.status,
@@ -211,6 +278,20 @@ export class VerificationInboxService {
       rejectionReason: verification.rejectionReason,
       nextStepMessage: verification.nextStepMessage,
       deepLink: `/verification/${verification.id}`,
+      lock: activeLock
+        ? {
+            lockId: activeLock.id,
+            lockedBy: activeLock.lockedBy,
+            lockedAt: activeLock.lockedAt,
+            expiresAt: activeLock.expiresAt,
+            remainingSeconds: Math.max(
+              0,
+              Math.floor(
+                (activeLock.expiresAt.getTime() - now.getTime()) / 1000,
+              ),
+            ),
+          }
+        : null,
     };
   }
 
@@ -268,5 +349,65 @@ export class VerificationInboxService {
       where: { entityType: 'verification', entityId: id },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async bulkUpdateStatus(
+    action: 'approve' | 'reject' | 'requeue',
+    ids: string[],
+    reviewerId: string,
+    nextStepMessage?: string,
+    rejectionReason?: string,
+    internalNote?: string,
+  ) {
+    const succeeded: { id: string; status: string }[] = [];
+    const failed: { id: string; error: string }[] = [];
+
+    const status: VerificationStatus =
+      action === 'approve'
+        ? 'approved'
+        : action === 'reject'
+          ? 'rejected'
+          : 'needs_resubmission';
+
+    for (const id of ids) {
+      try {
+        const updated = await this.updateStatus(
+          id,
+          status,
+          reviewerId,
+          nextStepMessage,
+          rejectionReason,
+          internalNote,
+        );
+
+        succeeded.push({
+          id: updated.id,
+          status: updated.status,
+        });
+      } catch (error) {
+        failed.push({
+          id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // A bulk action changes the shape of the queue itself, so tell listeners
+    // once rather than relying on the per-item events above.
+    if (succeeded.length > 0) {
+      this.inboxEvents?.publish('inbox.queue.changed', {
+        verificationId: succeeded[succeeded.length - 1].id,
+        status,
+        previousStatus: null,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date().toISOString(),
+        deepLink: '/verification',
+      });
+    }
+
+    return {
+      succeeded,
+      failed,
+    };
   }
 }
