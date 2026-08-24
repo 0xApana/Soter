@@ -96,3 +96,21 @@ def check_system_resources(memory_threshold_percent: float = 90.0) -> bool:
         return False
 
     return True
+
+
+# Cache stampede prevention metrics
+SINGLE_FLIGHT_SUPPRESSED = Counter(
+    "cache_single_flight_suppressed_total",
+    "Total number of concurrent cache misses suppressed by single-flight mechanism",
+    ["prefix"],
+)
+SINGLE_FLIGHT_COMPLETED = Counter(
+    "cache_single_flight_completed_total",
+    "Total number of single-flight computations completed",
+    ["prefix"],
+)
+SINGLE_FLIGHT_FAILED = Counter(
+    "cache_single_flight_failed_total",
+    "Total number of single-flight computations that failed",
+    ["prefix"],
+)
