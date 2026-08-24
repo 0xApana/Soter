@@ -173,12 +173,12 @@ class TestCacheStampedePrevention:
         mock_cache._generate_key = Mock(side_effect=mock_generate_key)
         mock_cache.set = Mock(return_value=True)
 
-        call_counts = {"value1": 0, "value2": 0}
+        # Use a list with a dictionary to work around nonlocal issues
+        call_counts_container = [{"value1": 0, "value2": 0}]
 
         @cached_response(prefix="test", ttl_seconds=60)
         async def test_func(arg1):
-            nonlocal call_counts
-            call_counts[arg1] += 1
+            call_counts_container[0][arg1] += 1
             await asyncio.sleep(0.05)
             return f"result_{arg1}"
 
@@ -196,8 +196,8 @@ class TestCacheStampedePrevention:
             results = await asyncio.gather(*tasks)
             
             # Each unique key should have only one call
-            assert call_counts["value1"] == 1
-            assert call_counts["value2"] == 1
+            assert call_counts_container[0]["value1"] == 1
+            assert call_counts_container[0]["value2"] == 1
             
             # Verify results
             assert results[0] == "result_value1"
