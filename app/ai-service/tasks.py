@@ -86,9 +86,14 @@ def get_process_heavy_inference_task():
         try:
             return process_heavy_inference_impl(self, task_id, payload)
         except BaseException as exc:
-            if isinstance(exc, (KeyboardInterrupt, SystemExit)) or type(exc).__name__ == "WorkerShutdown":
+            if (
+                isinstance(exc, (KeyboardInterrupt, SystemExit))
+                or type(exc).__name__ == "WorkerShutdown"
+            ):
                 error_msg = "Task interrupted by worker shutdown"
-                logger.warning(f"Task {task_id} interrupted by shutdown. Dead-lettering.")
+                logger.warning(
+                    f"Task {task_id} interrupted by shutdown. Dead-lettering."
+                )
                 handle_task_retries_exhausted(task_id, payload, error_msg)
                 raise
             if not isinstance(exc, Exception):

@@ -142,15 +142,17 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Shutting down Soter AI Service...")
     app.state.is_shutting_down = True
-    
+
     drain_timeout = settings.drain_timeout_seconds
     start_time = time.time()
-    
+
     while app.state.active_requests > 0 and (time.time() - start_time) < drain_timeout:
         await asyncio.sleep(0.1)
-        
+
     if app.state.active_requests > 0:
-        logger.warning(f"Drain timeout ({drain_timeout}s) reached with {app.state.active_requests} active requests.")
+        logger.warning(
+            f"Drain timeout ({drain_timeout}s) reached with {app.state.active_requests} active requests."
+        )
 
 
 app = FastAPI(
@@ -433,8 +435,10 @@ async def monitor_requests(request: Request, call_next):
         return JSONResponse(
             status_code=503,
             content=ErrorEnvelope(
-                error=ErrorDetail(code="SERVICE_UNAVAILABLE", message="Service is shutting down")
-            ).model_dump()
+                error=ErrorDetail(
+                    code="SERVICE_UNAVAILABLE", message="Service is shutting down"
+                )
+            ).model_dump(),
         )
 
     from services.load_shedder import evaluate_load_shed
@@ -454,12 +458,17 @@ async def monitor_requests(request: Request, call_next):
         status_code = 499
         logger.warning(f"Request {path} cancelled during shutdown. Dead-lettering.")
         from services.dead_letter import dead_letter_queue
+
         dead_letter_queue.add(
             kind="async_job",
-            task_id=request.state.correlation_id if hasattr(request.state, "correlation_id") else str(uuid.uuid4()),
+            task_id=(
+                request.state.correlation_id
+                if hasattr(request.state, "correlation_id")
+                else str(uuid.uuid4())
+            ),
             payload={"path": path, "method": request.method},
             error="Request cancelled during graceful shutdown",
-            task_type="sync_request"
+            task_type="sync_request",
         )
         raise e
     except Exception as e:
@@ -509,7 +518,11 @@ async def health_check(request: Request):
     if getattr(request.app.state, "is_shutting_down", False):
         return JSONResponse(
             status_code=503,
-            content={"status": "draining", "service": "soter-ai-service", "version": "1.0.0"}
+            content={
+                "status": "draining",
+                "service": "soter-ai-service",
+                "version": "1.0.0",
+            },
         )
     return {"status": "healthy", "service": "soter-ai-service", "version": "1.0.0"}
 
