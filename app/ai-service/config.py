@@ -306,7 +306,9 @@ class Settings(BaseSettings):
             )
             raise ConfigurationError(f"Invalid configuration:\n  - {summary}")
 
-    def report_boot_configuration(self, logger_: Optional[logging.Logger] = None) -> None:
+    def report_boot_configuration(
+        self, logger_: Optional[logging.Logger] = None
+    ) -> None:
         """Log the effective configuration at DEBUG level on boot.
 
         Optional values that are still at their declared defaults are
