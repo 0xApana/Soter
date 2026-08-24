@@ -38,6 +38,7 @@ const KEY_DISTRIBUTORS: Symbol = symbol_short!("dstrbtrs"); // Map<Address, bool
 const KEY_PAUSED: Symbol = symbol_short!("paused");
 const KEY_PAUSE_CREATE: Symbol = symbol_short!("p_create");
 const KEY_PAUSE_CLAIM: Symbol = symbol_short!("p_claim");
+const KEY_PAUSE_REFUND: Symbol = symbol_short!("p_refund");
 const KEY_PAUSE_WITHDRAW: Symbol = symbol_short!("p_wdrw");
 const KEY_TOTAL_CLAIMED: Symbol = symbol_short!("claimed"); // Map<Address, i128>
 const KEY_PENDING_ADMIN: Symbol = symbol_short!("pend_adm");
@@ -1205,6 +1206,7 @@ impl AidEscrow {
     }
 
     pub fn refund(env: Env, id: u64) -> Result<(), Error> {
+        Self::check_action_paused(&env, symbol_short!("refund"))?;
         let admin = Self::get_admin(env.clone())?;
         admin.require_auth();
 
@@ -1458,6 +1460,8 @@ impl AidEscrow {
             Ok(KEY_PAUSE_CLAIM)
         } else if action == symbol_short!("withdraw") {
             Ok(KEY_PAUSE_WITHDRAW)
+        } else if action == symbol_short!("refund") {
+            Ok(KEY_PAUSE_REFUND)
         } else {
             Err(Error::InvalidState)
         }
