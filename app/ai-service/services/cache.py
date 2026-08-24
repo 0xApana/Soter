@@ -293,10 +293,14 @@ def cached_response(
                     if event.is_set():
                         # Computation already completed
                         if cache_key in _inflight_results:
-                            logger.debug(f"Returning already computed result for key: {cache_key}")
+                            logger.debug(
+                                f"Returning already computed result for key: {cache_key}"
+                            )
                             return _inflight_results[cache_key]
                         elif cache_key in _inflight_errors:
-                            logger.debug(f"Raising already recorded error for key: {cache_key}")
+                            logger.debug(
+                                f"Raising already recorded error for key: {cache_key}"
+                            )
                             raise _inflight_errors[cache_key]
                     else:
                         # Computation in progress, wait for it

@@ -167,7 +167,7 @@ class TestCacheStampedePrevention:
 
         # Mock generate_key to return different keys for different args
         def mock_generate_key(prefix, *args, tags=None, **kwargs):
-            arg_value = args[0] if args else kwargs.get('arg1', 'default')
+            arg_value = args[0] if args else kwargs.get("arg1", "default")
             return f"test_key_{arg_value}"
 
         mock_cache._generate_key = Mock(side_effect=mock_generate_key)
