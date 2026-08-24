@@ -111,6 +111,16 @@ _LEGACY_PREFIX_MAP: list = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up Soter AI Service...")
+
+    # Fail fast on invalid configuration: raising inside the lifespan
+    # prevents uvicorn from ever serving traffic. All offending keys are
+    # reported together by validate_configuration().
+    settings.validate_configuration()
+
+    # Report optional values still at their defaults (DEBUG only; secrets
+    # are never included, consistent with logging_redaction.py).
+    settings.report_boot_configuration(logger)
+
     if not settings.validate_api_keys():
         logger.warning("No API keys configured. AI features will be unavailable.")
     else:
