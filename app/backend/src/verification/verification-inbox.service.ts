@@ -1,3 +1,5 @@
+import { VerificationInboxEventsService } from './verification-inbox-events.service';
+
 import {
   Injectable,
   NotFoundException,
@@ -7,7 +9,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Prisma, VerificationStatus } from '@prisma/client';
-import { VerificationInboxEventsService } from './verification-inbox-events.service';
 
 export interface InboxItem {
   id: string;
