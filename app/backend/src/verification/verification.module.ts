@@ -48,7 +48,7 @@ import { MetricsModule } from '../observability/metrics/metrics.module';
   controllers: [
     VerificationController,
     VerificationInboxController,
-    VerificationInboxSseController, // Added inbox SSE stream
+    VerificationInboxSseController, // Added inbox SSE stream endpoint
   ],
   providers: [
     VerificationService,
@@ -65,7 +65,7 @@ import { MetricsModule } from '../observability/metrics/metrics.module';
     VerificationService,
     VerificationFlowService,
     VerificationInboxService,
-    VerificationInboxEventsService, // Export so producers can publish events
+    VerificationInboxEventsService, // Export so other producers can publish
     VerificationMetadataService, // Export for use in other modules
     ReviewLockService, // Export for use in other modules
   ],
