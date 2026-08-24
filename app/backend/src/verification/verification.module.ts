@@ -12,6 +12,8 @@ import { VerificationInboxSseController } from './verification-inbox-sse.control
 import { VerificationInboxEventsService } from './verification-inbox-events.service';
 import { EnhancedVerificationFlowService } from './enhanced-verification-flow.service';
 import { VerificationMetadataService } from './metadata.service';
+import { ReviewLockService } from './review-lock.service';
+import { ReviewLockScheduler } from './review-lock.scheduler';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -56,6 +58,8 @@ import { MetricsModule } from '../observability/metrics/metrics.module';
     VerificationInboxEventsService, // Added inbox event fan-out hub
     EnhancedVerificationFlowService, // Added enhanced flow service
     VerificationMetadataService, // Added metadata service
+    ReviewLockService, // Added review lock service
+    ReviewLockScheduler, // Added stale-lock recovery scheduler
   ],
   exports: [
     VerificationService,
@@ -63,6 +67,7 @@ import { MetricsModule } from '../observability/metrics/metrics.module';
     VerificationInboxService,
     VerificationInboxEventsService, // Export so other producers can publish
     VerificationMetadataService, // Export for use in other modules
+    ReviewLockService, // Export for use in other modules
   ],
 })
 export class VerificationModule {}

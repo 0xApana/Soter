@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Prisma, VerificationStatus } from '@prisma/client';
+import { LockEntityType } from './dto/review-lock.dto';
 
 export interface InboxItem {
   id: string;
@@ -19,6 +20,12 @@ export interface InboxItem {
   rejectionReason: string | null;
   nextStepMessage: string | null;
   deepLink: string;
+  lock?: {
+    lockedBy: string;
+    lockedAt: Date;
+    expiresAt: Date;
+    remainingSeconds: number;
+  } | null;
 }
 
 export interface InboxResponse {
@@ -85,19 +92,52 @@ export class VerificationInboxService {
       this.prisma.verificationRequest.count({ where }),
     ]);
 
+    // Get active locks for all items in a single query
+    const itemIds = items.map(item => item.id);
+    const now = new Date();
+
+    const activeLocks = await this.prisma.reviewLock.findMany({
+      where: {
+        entityType: LockEntityType.VERIFICATION,
+        entityId: { in: itemIds },
+        status: 'active',
+        expiresAt: { gt: now },
+      },
+    });
+
+    const lockMap = new Map(activeLocks.map(lock => [lock.entityId, lock]));
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      items: items.map(item => ({
-        id: item.id,
-        status: item.status,
-        createdAt: item.createdAt,
-        reviewedAt: item.reviewedAt,
-        reviewedBy: item.reviewedBy,
-        rejectionReason: item.rejectionReason,
-        nextStepMessage: item.nextStepMessage,
-        deepLink: `/verification/${item.id}`,
-      })),
+      items: items.map(item => {
+        const lock = lockMap.get(item.id);
+        const remainingSeconds = lock
+          ? Math.max(
+              0,
+              Math.floor((lock.expiresAt.getTime() - now.getTime()) / 1000),
+            )
+          : 0;
+
+        return {
+          id: item.id,
+          status: item.status,
+          createdAt: item.createdAt,
+          reviewedAt: item.reviewedAt,
+          reviewedBy: item.reviewedBy,
+          rejectionReason: item.rejectionReason,
+          nextStepMessage: item.nextStepMessage,
+          deepLink: `/verification/${item.id}`,
+          lock: lock
+            ? {
+                lockedBy: lock.lockedBy,
+                lockedAt: lock.lockedAt,
+                expiresAt: lock.expiresAt,
+                remainingSeconds,
+              }
+            : null,
+        };
+      }),
       total,
       page,
       limit,
@@ -221,6 +261,17 @@ export class VerificationInboxService {
       throw new NotFoundException('Verification request not found');
     }
 
+    // Get active lock status
+    const now = new Date();
+    const activeLock = await this.prisma.reviewLock.findFirst({
+      where: {
+        entityType: LockEntityType.VERIFICATION,
+        entityId: id,
+        status: 'active',
+        expiresAt: { gt: now },
+      },
+    });
+
     return {
       id: verification.id,
       status: verification.status,
@@ -230,6 +281,20 @@ export class VerificationInboxService {
       rejectionReason: verification.rejectionReason,
       nextStepMessage: verification.nextStepMessage,
       deepLink: `/verification/${verification.id}`,
+      lock: activeLock
+        ? {
+            lockId: activeLock.id,
+            lockedBy: activeLock.lockedBy,
+            lockedAt: activeLock.lockedAt,
+            expiresAt: activeLock.expiresAt,
+            remainingSeconds: Math.max(
+              0,
+              Math.floor(
+                (activeLock.expiresAt.getTime() - now.getTime()) / 1000,
+              ),
+            ),
+          }
+        : null,
     };
   }
 
@@ -287,5 +352,52 @@ export class VerificationInboxService {
       where: { entityType: 'verification', entityId: id },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async bulkUpdateStatus(
+    action: 'approve' | 'reject' | 'requeue',
+    ids: string[],
+    reviewerId: string,
+    nextStepMessage?: string,
+    rejectionReason?: string,
+    internalNote?: string,
+  ) {
+    const succeeded: { id: string; status: string }[] = [];
+    const failed: { id: string; error: string }[] = [];
+
+    const status: VerificationStatus =
+      action === 'approve'
+        ? 'approved'
+        : action === 'reject'
+          ? 'rejected'
+          : 'needs_resubmission';
+
+    for (const id of ids) {
+      try {
+        const updated = await this.updateStatus(
+          id,
+          status,
+          reviewerId,
+          nextStepMessage,
+          rejectionReason,
+          internalNote,
+        );
+
+        succeeded.push({
+          id: updated.id,
+          status: updated.status,
+        });
+      } catch (error) {
+        failed.push({
+          id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      succeeded,
+      failed,
+    };
   }
 }
