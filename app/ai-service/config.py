@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "0.0.0.0"
     port: int = 8000
+    drain_timeout_seconds: int = 30
 
     # Redis and Celery settings
     redis_url: str = "redis://localhost:6379/0"
