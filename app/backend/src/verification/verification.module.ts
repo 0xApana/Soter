@@ -65,7 +65,7 @@ import { MetricsModule } from '../observability/metrics/metrics.module';
     VerificationService,
     VerificationFlowService,
     VerificationInboxService,
-    VerificationInboxEventsService, // Export so other modules can publish
+    VerificationInboxEventsService, // Export so producers can publish events
     VerificationMetadataService, // Export for use in other modules
     ReviewLockService, // Export for use in other modules
   ],

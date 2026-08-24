@@ -59,8 +59,8 @@ export class VerificationInboxService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    // Optional so existing unit tests and any consumer that constructs this
-    // service without the stream hub keep working unchanged.
+    // Optional so existing unit tests and consumers that construct this
+    // service without the SSE hub keep working unchanged.
     @Optional()
     private readonly inboxEvents?: VerificationInboxEventsService,
   ) {}
@@ -223,12 +223,13 @@ export class VerificationInboxService {
       },
     });
 
-    // Fan the review decision out to connected SSE clients
+    // Fan out to connected SSE inbox streams. Best effort and in-process only:
+    // the audit trail above remains the source of truth.
     this.inboxEvents?.publish('inbox.item.updated', {
       verificationId: id,
       status: updated.status,
       previousStatus: verification.status,
-      reviewedBy: updated.reviewedBy ?? null,
+      reviewedBy: updated.reviewedBy,
       reviewedAt: updated.reviewedAt?.toISOString() ?? null,
       deepLink: `/verification/${id}`,
     });
@@ -390,19 +391,6 @@ export class VerificationInboxService {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-    }
-
-    // A bulk action changes the shape of the queue itself, so tell listeners
-    // once rather than relying on the per-item events above.
-    if (succeeded.length > 0) {
-      this.inboxEvents?.publish('inbox.queue.changed', {
-        verificationId: succeeded[succeeded.length - 1].id,
-        status,
-        previousStatus: null,
-        reviewedBy: reviewerId,
-        reviewedAt: new Date().toISOString(),
-        deepLink: '/verification',
-      });
     }
 
     return {
