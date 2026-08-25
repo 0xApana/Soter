@@ -220,15 +220,6 @@ pub struct PackageRevoked {
 }
 
 #[contractevent]
-pub struct PackageSwept {
-    pub package_id: u64,
-    pub recipient: Address,
-    pub amount: i128,
-    pub actor: Address,
-    pub timestamp: u64,
-}
-
-#[contractevent]
 pub struct PackageRefunded {
     pub package_id: u64,
     pub recipient: Address,
@@ -2507,14 +2498,6 @@ impl AidEscrow {
     /// Emits a `DelegateRevoked` event per cleared delegate.
     pub fn sweep_expired_delegates(env: Env, limit: u32) -> Result<u32, Error> {
         crate::delegate::sweep_expired_delegates(&env, limit)
-    }
-
-    /// Sweeps expired packages in bounded batches.
-    /// Safe to call repeatedly and by any address.
-    /// Emits a `PackageSwept` event per swept package.
-    pub fn sweep_expired_packages(env: Env, limit: u32) -> Result<u32, Error> {
-        let _max_limit = if limit == 0 { 50 } else { limit.min(100) };
-        Ok(0)
     }
 }
 

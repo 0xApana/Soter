@@ -232,14 +232,6 @@ export interface PackageRevoked {
   timestamp: number;
 }
 
-export interface PackageSwept {
-  package_id: number;
-  recipient: string;
-  amount: string;
-  actor: string;
-  timestamp: number;
-}
-
 export interface SurplusWithdrawnEvent {
   to: string;
   token: string;
@@ -378,13 +370,6 @@ export interface ContractEvents {
     actor: string;
     timestamp: number;
   };
-  PackageSwept: {
-    package_id: number;
-    recipient: string;
-    amount: string;
-    actor: string;
-    timestamp: number;
-  };
   SurplusWithdrawnEvent: {
     to: string;
     token: string;
@@ -455,7 +440,6 @@ export interface AidEscrowContractFunctions {
   set_delegate(admin: string, package_id: number, delegate: string): Promise<void>;
   set_delegate_with_expiry(admin: string, package_id: number, delegate: string, expires_at: number): Promise<void>;
   sweep_expired_delegates(limit: number): Promise<number>;
-  sweep_expired_packages(limit: number): Promise<number>;
   transfer_admin(new_admin: string): Promise<void>;
   unpause(): Promise<void>;
   unpause_action(action: string): Promise<void>;
