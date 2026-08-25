@@ -605,31 +605,6 @@
         }
       ]
     },
-    "PackageSwept": {
-      "name": "PackageSwept",
-      "fields": [
-        {
-          "name": "package_id",
-          "type": "u64"
-        },
-        {
-          "name": "recipient",
-          "type": "Address"
-        },
-        {
-          "name": "amount",
-          "type": "i128"
-        },
-        {
-          "name": "actor",
-          "type": "Address"
-        },
-        {
-          "name": "timestamp",
-          "type": "u64"
-        }
-      ]
-    },
     "SurplusWithdrawnEvent": {
       "name": "SurplusWithdrawnEvent",
       "fields": [
@@ -1162,31 +1137,6 @@
     },
     "PackageRevoked": {
       "name": "PackageRevoked",
-      "fields": [
-        {
-          "name": "package_id",
-          "type": "u64"
-        },
-        {
-          "name": "recipient",
-          "type": "Address"
-        },
-        {
-          "name": "amount",
-          "type": "i128"
-        },
-        {
-          "name": "actor",
-          "type": "Address"
-        },
-        {
-          "name": "timestamp",
-          "type": "u64"
-        }
-      ]
-    },
-    "PackageSwept": {
-      "name": "PackageSwept",
       "fields": [
         {
           "name": "package_id",
@@ -2071,20 +2021,6 @@
     },
     "sweep_expired_delegates": {
       "name": "sweep_expired_delegates",
-      "parameters": [
-        {
-          "name": "env",
-          "type": "Env"
-        },
-        {
-          "name": "limit",
-          "type": "u32"
-        }
-      ],
-      "return_type": "Result<u32, Error>"
-    },
-    "sweep_expired_packages": {
-      "name": "sweep_expired_packages",
       "parameters": [
         {
           "name": "env",
