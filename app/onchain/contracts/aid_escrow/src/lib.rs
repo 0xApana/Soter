@@ -2365,6 +2365,13 @@ impl AidEscrow {
         admin.require_auth();
         crate::delegate::cleanup_expired_delegates(&env, &admin)
     }
+
+    /// Sweeps expired delegate entries in bounded batches to reclaim storage rent.
+    /// Safe to call repeatedly and by any address (no admin auth required).
+    /// Emits a `DelegateRevoked` event per cleared delegate.
+    pub fn sweep_expired_delegates(env: Env, limit: u32) -> Result<u32, Error> {
+        crate::delegate::sweep_expired_delegates(&env, limit)
+    }
 }
 
 // --- Tests ---
