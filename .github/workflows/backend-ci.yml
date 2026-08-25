@@ -52,6 +52,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://soter:soter@localhost:5432/soter_test
 
+      - name: Verify contract spec & generated types drift
+        run: |
+          python3 app/onchain/scripts/export-spec.py
+          node app/backend/scripts/generate-contract-types.js
+          git diff --exit-code app/onchain/contracts/aid_escrow/contract-spec.json app/backend/src/onchain/generated/
+
       - name: Lint
         run: pnpm --filter backend run lint
 

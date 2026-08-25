@@ -98,12 +98,16 @@ export interface GetAidPackageParams {
   packageId: string;
 }
 
+import { PackageStatusString } from './generated';
+
+export * from './generated';
+
 export interface AidPackage {
   id: string;
   recipient: string;
   amount: string;
   token: string;
-  status: 'Created' | 'Claimed' | 'Expired' | 'Cancelled' | 'Refunded';
+  status: PackageStatusString;
   createdAt: number;
   expiresAt: number;
   metadata?: Record<string, string>;

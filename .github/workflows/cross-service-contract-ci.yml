@@ -52,6 +52,12 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --no-frozen-lockfile --engine-strict=false
 
+      - name: Verify Contract Spec Drift
+        run: |
+          python3 app/onchain/scripts/export-spec.py
+          node app/backend/scripts/generate-contract-types.js
+          git diff --exit-code app/onchain/contracts/aid_escrow/contract-spec.json app/backend/src/onchain/generated/
+
       - name: Run Backend Contract Tests
         working-directory: app/backend
         run: npx jest test/contract.spec.ts

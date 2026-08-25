@@ -1,0 +1,2125 @@
+{
+  "$schema": "https://soter.io/schemas/contract-spec.v1.json",
+  "name": "aid_escrow",
+  "version": "0.2.0",
+  "enums": {
+    "ClaimStatus": {
+      "name": "ClaimStatus",
+      "variants": [
+        {
+          "name": "Success",
+          "value": 0
+        },
+        {
+          "name": "NotFound",
+          "value": 1
+        },
+        {
+          "name": "NotActive",
+          "value": 2
+        },
+        {
+          "name": "ClaimTooEarly",
+          "value": 3
+        },
+        {
+          "name": "Expired",
+          "value": 4
+        },
+        {
+          "name": "RequiresProof",
+          "value": 5
+        },
+        {
+          "name": "Unauthorized",
+          "value": 6
+        },
+        {
+          "name": "CampaignPaused",
+          "value": 7
+        },
+        {
+          "name": "TransferFailed",
+          "value": 8
+        }
+      ]
+    },
+    "PackageStatus": {
+      "name": "PackageStatus",
+      "variants": [
+        {
+          "name": "Created",
+          "value": 0
+        },
+        {
+          "name": "Claimed",
+          "value": 1
+        },
+        {
+          "name": "Expired",
+          "value": 2
+        },
+        {
+          "name": "Cancelled",
+          "value": 3
+        },
+        {
+          "name": "Refunded",
+          "value": 4
+        }
+      ]
+    }
+  },
+  "structs": {
+    "ActionPausedEvent": {
+      "name": "ActionPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ]
+    },
+    "ActionUnpausedEvent": {
+      "name": "ActionUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ]
+    },
+    "AdminTransferAccepted": {
+      "name": "AdminTransferAccepted",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "AdminTransferCancelled": {
+      "name": "AdminTransferCancelled",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "AdminTransferInitiated": {
+      "name": "AdminTransferInitiated",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "pending_admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "Aggregates": {
+      "name": "Aggregates",
+      "fields": [
+        {
+          "name": "total_committed",
+          "type": "i128"
+        },
+        {
+          "name": "total_claimed",
+          "type": "i128"
+        },
+        {
+          "name": "total_expired_cancelled",
+          "type": "i128"
+        }
+      ]
+    },
+    "BatchClaimResult": {
+      "name": "BatchClaimResult",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "status",
+          "type": "ClaimStatus"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        }
+      ]
+    },
+    "BatchCreatedEvent": {
+      "name": "BatchCreatedEvent",
+      "fields": [
+        {
+          "name": "ids",
+          "type": "Vec<u64>"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "total_amount",
+          "type": "i128"
+        }
+      ]
+    },
+    "CampaignPausedEvent": {
+      "name": "CampaignPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ]
+    },
+    "CampaignUnpausedEvent": {
+      "name": "CampaignUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ]
+    },
+    "Config": {
+      "name": "Config",
+      "fields": [
+        {
+          "name": "min_amount",
+          "type": "i128"
+        },
+        {
+          "name": "max_expires_in",
+          "type": "u64"
+        },
+        {
+          "name": "allowed_tokens",
+          "type": "Vec<Address>"
+        }
+      ]
+    },
+    "ContractPausedEvent": {
+      "name": "ContractPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ]
+    },
+    "ContractUnpausedEvent": {
+      "name": "ContractUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ]
+    },
+    "DelegateAdded": {
+      "name": "DelegateAdded",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "DelegateClaimed": {
+      "name": "DelegateClaimed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "DelegateHistory": {
+      "name": "DelegateHistory",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "previous_delegate",
+          "type": "Option<Address>"
+        },
+        {
+          "name": "new_delegate",
+          "type": "Address"
+        },
+        {
+          "name": "changed_by",
+          "type": "Address"
+        },
+        {
+          "name": "changed_at",
+          "type": "u64"
+        },
+        {
+          "name": "reason",
+          "type": "Symbol"
+        }
+      ]
+    },
+    "DelegateRevoked": {
+      "name": "DelegateRevoked",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "EscrowFunded": {
+      "name": "EscrowFunded",
+      "fields": [
+        {
+          "name": "from",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "ExtendedEvent": {
+      "name": "ExtendedEvent",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "old_expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "new_expires_at",
+          "type": "u64"
+        }
+      ]
+    },
+    "Package": {
+      "name": "Package",
+      "fields": [
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "status",
+          "type": "PackageStatus"
+        },
+        {
+          "name": "created_at",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "claim_starts_at",
+          "type": "u64"
+        },
+        {
+          "name": "metadata",
+          "type": "Map<Symbol, String>"
+        }
+      ]
+    },
+    "PackageClaimed": {
+      "name": "PackageClaimed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        },
+        {
+          "name": "receipt_hash",
+          "type": "String"
+        }
+      ]
+    },
+    "PackageClaimedByRelayer": {
+      "name": "PackageClaimedByRelayer",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "relayer",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageCreated": {
+      "name": "PackageCreated",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageDisbursed": {
+      "name": "PackageDisbursed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        },
+        {
+          "name": "receipt_hash",
+          "type": "String"
+        }
+      ]
+    },
+    "PackageRefunded": {
+      "name": "PackageRefunded",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageRevoked": {
+      "name": "PackageRevoked",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "SurplusWithdrawnEvent": {
+      "name": "SurplusWithdrawnEvent",
+      "fields": [
+        {
+          "name": "to",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        }
+      ]
+    },
+    "TokenAdded": {
+      "name": "TokenAdded",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "TokenRemoved": {
+      "name": "TokenRemoved",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    }
+  },
+  "errors": {
+    "name": "Error",
+    "variants": [
+      {
+        "name": "NotInitialized",
+        "value": 1
+      },
+      {
+        "name": "AlreadyInitialized",
+        "value": 2
+      },
+      {
+        "name": "NotAuthorized",
+        "value": 3
+      },
+      {
+        "name": "InvalidAmount",
+        "value": 4
+      },
+      {
+        "name": "PackageNotFound",
+        "value": 5
+      },
+      {
+        "name": "PackageNotActive",
+        "value": 6
+      },
+      {
+        "name": "PackageExpired",
+        "value": 7
+      },
+      {
+        "name": "PackageNotExpired",
+        "value": 8
+      },
+      {
+        "name": "InsufficientFunds",
+        "value": 9
+      },
+      {
+        "name": "PackageIdExists",
+        "value": 10
+      },
+      {
+        "name": "InvalidState",
+        "value": 11
+      },
+      {
+        "name": "MismatchedArrays",
+        "value": 12
+      },
+      {
+        "name": "InsufficientSurplus",
+        "value": 13
+      },
+      {
+        "name": "ContractPaused",
+        "value": 14
+      },
+      {
+        "name": "ClaimTooEarly",
+        "value": 15
+      },
+      {
+        "name": "InvalidProof",
+        "value": 16
+      },
+      {
+        "name": "InvalidToken",
+        "value": 17
+      },
+      {
+        "name": "TokenTransferFailed",
+        "value": 18
+      },
+      {
+        "name": "NoPendingTransfer",
+        "value": 19
+      },
+      {
+        "name": "InvalidPendingAdmin",
+        "value": 20
+      },
+      {
+        "name": "BatchTooLarge",
+        "value": 21
+      }
+    ]
+  },
+  "events": {
+    "ActionPausedEvent": {
+      "name": "ActionPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ]
+    },
+    "ActionUnpausedEvent": {
+      "name": "ActionUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ]
+    },
+    "AdminTransferAccepted": {
+      "name": "AdminTransferAccepted",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "AdminTransferCancelled": {
+      "name": "AdminTransferCancelled",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "AdminTransferInitiated": {
+      "name": "AdminTransferInitiated",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "pending_admin",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "BatchCreatedEvent": {
+      "name": "BatchCreatedEvent",
+      "fields": [
+        {
+          "name": "ids",
+          "type": "Vec<u64>"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "total_amount",
+          "type": "i128"
+        }
+      ]
+    },
+    "CampaignPausedEvent": {
+      "name": "CampaignPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ]
+    },
+    "CampaignUnpausedEvent": {
+      "name": "CampaignUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ]
+    },
+    "ContractPausedEvent": {
+      "name": "ContractPausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ]
+    },
+    "ContractUnpausedEvent": {
+      "name": "ContractUnpausedEvent",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ]
+    },
+    "DelegateAdded": {
+      "name": "DelegateAdded",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "DelegateClaimed": {
+      "name": "DelegateClaimed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "DelegateRevoked": {
+      "name": "DelegateRevoked",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "EscrowFunded": {
+      "name": "EscrowFunded",
+      "fields": [
+        {
+          "name": "from",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "ExtendedEvent": {
+      "name": "ExtendedEvent",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "old_expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "new_expires_at",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageClaimed": {
+      "name": "PackageClaimed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        },
+        {
+          "name": "receipt_hash",
+          "type": "String"
+        }
+      ]
+    },
+    "PackageClaimedByRelayer": {
+      "name": "PackageClaimedByRelayer",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "relayer",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageCreated": {
+      "name": "PackageCreated",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageDisbursed": {
+      "name": "PackageDisbursed",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        },
+        {
+          "name": "receipt_hash",
+          "type": "String"
+        }
+      ]
+    },
+    "PackageRefunded": {
+      "name": "PackageRefunded",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "PackageRevoked": {
+      "name": "PackageRevoked",
+      "fields": [
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "actor",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "SurplusWithdrawnEvent": {
+      "name": "SurplusWithdrawnEvent",
+      "fields": [
+        {
+          "name": "to",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        }
+      ]
+    },
+    "TokenAdded": {
+      "name": "TokenAdded",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    },
+    "TokenRemoved": {
+      "name": "TokenRemoved",
+      "fields": [
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "timestamp",
+          "type": "u64"
+        }
+      ]
+    }
+  },
+  "functions": {
+    "accept_admin": {
+      "name": "accept_admin",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "add_allowed_token": {
+      "name": "add_allowed_token",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "add_distributor": {
+      "name": "add_distributor",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "addr",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "batch_claim": {
+      "name": "batch_claim",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "claimant",
+          "type": "Address"
+        },
+        {
+          "name": "ids",
+          "type": "Vec<u64>"
+        }
+      ],
+      "return_type": "Result<Vec<BatchClaimResult>, Error>"
+    },
+    "batch_create_packages": {
+      "name": "batch_create_packages",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "operator",
+          "type": "Address"
+        },
+        {
+          "name": "recipients",
+          "type": "Vec<Address>"
+        },
+        {
+          "name": "amounts",
+          "type": "Vec<i128>"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "expires_in",
+          "type": "u64"
+        },
+        {
+          "name": "metadatas",
+          "type": "Vec<Map<Symbol, String>>"
+        }
+      ],
+      "return_type": "Result<Vec<u64>, Error>"
+    },
+    "cancel_admin_transfer": {
+      "name": "cancel_admin_transfer",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "cancel_package": {
+      "name": "cancel_package",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "claim": {
+      "name": "claim",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "claim_with_proof": {
+      "name": "claim_with_proof",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "claimant",
+          "type": "Address"
+        },
+        {
+          "name": "proof",
+          "type": "Vec<String>"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "claim_with_relayer": {
+      "name": "claim_with_relayer",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "claimant",
+          "type": "Address"
+        },
+        {
+          "name": "relayer",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "cleanup_expired_delegates": {
+      "name": "cleanup_expired_delegates",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<u32, Error>"
+    },
+    "clear_delegate": {
+      "name": "clear_delegate",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "&Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "()"
+    },
+    "contract_version": {
+      "name": "contract_version",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "String"
+    },
+    "create_package": {
+      "name": "create_package",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "operator",
+          "type": "Address"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "expires_at",
+          "type": "u64"
+        },
+        {
+          "name": "metadata",
+          "type": "Map<Symbol, String>"
+        }
+      ],
+      "return_type": "Result<u64, Error>"
+    },
+    "disburse": {
+      "name": "disburse",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "extend_expiration": {
+      "name": "extend_expiration",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "additional_time",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "extend_expiry": {
+      "name": "extend_expiry",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "new_expires_at",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "fund": {
+      "name": "fund",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        },
+        {
+          "name": "from",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "get_admin": {
+      "name": "get_admin",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Result<Address, Error>"
+    },
+    "get_aggregates": {
+      "name": "get_aggregates",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Aggregates"
+    },
+    "get_authorization_info": {
+      "name": "get_authorization_info",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "&Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "primary_recipient",
+          "type": "&Address"
+        },
+        {
+          "name": "claimer",
+          "type": "&Address"
+        }
+      ],
+      "return_type": "(bool, Option<Symbol>)"
+    },
+    "get_campaign_claim_count": {
+      "name": "get_campaign_claim_count",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ],
+      "return_type": "u64"
+    },
+    "get_campaign_package_count": {
+      "name": "get_campaign_package_count",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ],
+      "return_type": "u64"
+    },
+    "get_config": {
+      "name": "get_config",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Config"
+    },
+    "get_delegate": {
+      "name": "get_delegate",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Option<Address>"
+    },
+    "get_delegate_history": {
+      "name": "get_delegate_history",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Vec<crate::delegate::DelegateHistory>"
+    },
+    "get_delegate_info": {
+      "name": "get_delegate_info",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Option<(Address, Option<u64>)>"
+    },
+    "get_package": {
+      "name": "get_package",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<Package, Error>"
+    },
+    "get_pending_admin": {
+      "name": "get_pending_admin",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Option<Address>"
+    },
+    "get_recipient_package_count": {
+      "name": "get_recipient_package_count",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        }
+      ],
+      "return_type": "u64"
+    },
+    "get_total_claimed": {
+      "name": "get_total_claimed",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "i128"
+    },
+    "get_total_locked": {
+      "name": "get_total_locked",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "i128"
+    },
+    "get_version": {
+      "name": "get_version",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "u32"
+    },
+    "init": {
+      "name": "init",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "is_action_paused": {
+      "name": "is_action_paused",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ],
+      "return_type": "bool"
+    },
+    "is_authorised_claimer": {
+      "name": "is_authorised_claimer",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "&Env"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "primary_recipient",
+          "type": "&Address"
+        },
+        {
+          "name": "claimer",
+          "type": "&Address"
+        }
+      ],
+      "return_type": "bool"
+    },
+    "is_campaign_paused": {
+      "name": "is_campaign_paused",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ],
+      "return_type": "bool"
+    },
+    "is_paused": {
+      "name": "is_paused",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "bool"
+    },
+    "list_recipient_packages": {
+      "name": "list_recipient_packages",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "recipient",
+          "type": "Address"
+        },
+        {
+          "name": "cursor",
+          "type": "u64"
+        },
+        {
+          "name": "limit",
+          "type": "u32"
+        }
+      ],
+      "return_type": "Vec<u64>"
+    },
+    "migrate": {
+      "name": "migrate",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "new_version",
+          "type": "u32"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "pause": {
+      "name": "pause",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "pause_action": {
+      "name": "pause_action",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "pause_campaign": {
+      "name": "pause_campaign",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "refund": {
+      "name": "refund",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "remove_allowed_token": {
+      "name": "remove_allowed_token",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "remove_distributor": {
+      "name": "remove_distributor",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "addr",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "revoke": {
+      "name": "revoke",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "revoke_delegate": {
+      "name": "revoke_delegate",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "set_config": {
+      "name": "set_config",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "config",
+          "type": "Config"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "set_delegate": {
+      "name": "set_delegate",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "set_delegate_with_expiry": {
+      "name": "set_delegate_with_expiry",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "admin",
+          "type": "Address"
+        },
+        {
+          "name": "package_id",
+          "type": "u64"
+        },
+        {
+          "name": "delegate",
+          "type": "Address"
+        },
+        {
+          "name": "expires_at",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "sweep_expired_delegates": {
+      "name": "sweep_expired_delegates",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "limit",
+          "type": "u32"
+        }
+      ],
+      "return_type": "Result<u32, Error>"
+    },
+    "transfer_admin": {
+      "name": "transfer_admin",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "new_admin",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "unpause": {
+      "name": "unpause",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "unpause_action": {
+      "name": "unpause_action",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "action",
+          "type": "Symbol"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "unpause_campaign": {
+      "name": "unpause_campaign",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "campaign_ref",
+          "type": "String"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    },
+    "view_package_status": {
+      "name": "view_package_status",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ],
+      "return_type": "Result<PackageStatus, Error>"
+    },
+    "withdraw_surplus": {
+      "name": "withdraw_surplus",
+      "parameters": [
+        {
+          "name": "env",
+          "type": "Env"
+        },
+        {
+          "name": "to",
+          "type": "Address"
+        },
+        {
+          "name": "amount",
+          "type": "i128"
+        },
+        {
+          "name": "token",
+          "type": "Address"
+        }
+      ],
+      "return_type": "Result<(), Error>"
+    }
+  }
+}

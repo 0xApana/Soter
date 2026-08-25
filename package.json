@@ -10,7 +10,9 @@
     "build": "pnpm run build --filter=app/frontend",
     "start": "pnpm run start --filter=app/frontend",
     "lint": "pnpm run lint --filter=app/frontend",
-    "test": "pnpm run test --filter=app/frontend"
+    "test": "pnpm run test --filter=app/frontend",
+    "generate:contract-types": "pnpm --filter backend run generate:contract-types",
+    "check:contract-types": "pnpm --filter backend run check:contract-types"
   },
   "devDependencies": {
     "@prisma/client": "^7.4.1",

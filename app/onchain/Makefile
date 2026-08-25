@@ -63,6 +63,10 @@ registry:
 	@echo "📋 Generating contract registry..."
 	@python3 scripts/generate-registry.py
 
+spec:
+	@echo "📄 Exporting contract specification..."
+	@python3 scripts/export-spec.py
+
 docs:
 	@echo "📚 Generating documentation..."
 	@cargo doc --open
