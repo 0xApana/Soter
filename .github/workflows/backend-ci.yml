@@ -32,6 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
@@ -45,6 +50,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --engine-strict=false
+
+      - name: Generate Prisma client
+        working-directory: app/backend
+        run: npx prisma generate
 
       - name: Run Prisma migrations
         working-directory: app/backend
