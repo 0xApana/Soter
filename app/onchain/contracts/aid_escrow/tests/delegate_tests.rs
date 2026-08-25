@@ -342,7 +342,6 @@ fn test_cleanup_expired_delegates() {
 fn test_sweep_expired_delegates_by_any_address() {
     let (env, client, admin, recipient, delegate1, token_client, _) = setup();
     let delegate2 = Address::generate(&env);
-    let stranger = Address::generate(&env);
 
     let token = token_client.address.clone();
     create_package(&client, &admin, &recipient, &token, 10);
@@ -400,4 +399,3 @@ fn test_get_delegate_boundary_and_expiry_semantics() {
     assert_eq!(client.get_delegate(&1), None);
     assert_eq!(client.get_delegate_info(&1), None);
 }
-
