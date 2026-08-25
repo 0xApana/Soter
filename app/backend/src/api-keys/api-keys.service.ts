@@ -16,11 +16,7 @@ import { RotateApiKeyDto } from './dto/rotate-api-key.dto';
 type Actor = { apiKeyId?: string; authType?: string; role?: AppRole };
 
 export type ApiKeyRotationStatus =
-  | 'active'
-  | 'expiring_soon'
-  | 'expired'
-  | 'revoked'
-  | 'rotated';
+  'active' | 'expiring_soon' | 'expired' | 'revoked' | 'rotated';
 
 export type ApiKeyAdminView = {
   id: string;

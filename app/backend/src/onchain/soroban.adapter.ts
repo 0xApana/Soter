@@ -41,7 +41,6 @@ import {
   GetTransactionStatusResult,
   TxStatus,
 } from './onchain.adapter';
-import { PackageStatus, ClaimStatus } from './generated';
 import { SorobanErrorMapper } from './utils/soroban-error.mapper';
 import { withRetryTimeout } from './utils/retry-with-timeout';
 import { getNetworkProfile } from 'src/config/network.config';
