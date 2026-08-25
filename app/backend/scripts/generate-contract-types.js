@@ -220,7 +220,7 @@ function generateTypeScript(spec) {
   return lines.join('\n');
 }
 
-function main() {
+async function main() {
   const { specPath, outPath } = parseArgs();
 
   if (!fs.existsSync(specPath)) {
@@ -232,7 +232,18 @@ function main() {
   const specContent = fs.readFileSync(specPath, 'utf-8');
   const spec = JSON.parse(specContent);
 
-  const tsCode = generateTypeScript(spec);
+  let tsCode = generateTypeScript(spec);
+
+  try {
+    const prettier = require('prettier');
+    tsCode = await prettier.format(tsCode, {
+      parser: 'typescript',
+      singleQuote: true,
+      trailingComma: 'all',
+    });
+  } catch (_err) {
+    // Fallback if prettier is not installed or available
+  }
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, tsCode.replace(/\r\n/g, '\n'), 'utf-8');
@@ -240,4 +251,7 @@ function main() {
   console.log(`[OK] TypeScript contract types generated at: ${outPath}`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

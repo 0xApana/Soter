@@ -392,29 +392,58 @@ export interface AidEscrowContractFunctions {
   add_allowed_token(token: string): Promise<void>;
   add_distributor(addr: string): Promise<void>;
   batch_claim(claimant: string, ids: number[]): Promise<BatchClaimResult[]>;
-  batch_create_packages(operator: string, recipients: string[], amounts: string[], token: string, expires_in: number, metadatas: Record<string, string>[]): Promise<number[]>;
+  batch_create_packages(
+    operator: string,
+    recipients: string[],
+    amounts: string[],
+    token: string,
+    expires_in: number,
+    metadatas: Record<string, string>[],
+  ): Promise<number[]>;
   cancel_admin_transfer(): Promise<void>;
   cancel_package(package_id: number): Promise<void>;
   claim(id: number): Promise<void>;
-  claim_with_proof(id: number, claimant: string, proof: string[]): Promise<void>;
-  claim_with_relayer(id: number, claimant: string, relayer: string): Promise<void>;
+  claim_with_proof(
+    id: number,
+    claimant: string,
+    proof: string[],
+  ): Promise<void>;
+  claim_with_relayer(
+    id: number,
+    claimant: string,
+    relayer: string,
+  ): Promise<void>;
   cleanup_expired_delegates(admin: string): Promise<number>;
   clear_delegate(package_id: number): Promise<void>;
   contract_version(): Promise<string>;
-  create_package(operator: string, id: number, recipient: string, amount: string, token: string, expires_at: number, metadata: Record<string, string>): Promise<number>;
+  create_package(
+    operator: string,
+    id: number,
+    recipient: string,
+    amount: string,
+    token: string,
+    expires_at: number,
+    metadata: Record<string, string>,
+  ): Promise<number>;
   disburse(id: number): Promise<void>;
   extend_expiration(package_id: number, additional_time: number): Promise<void>;
   extend_expiry(id: number, new_expires_at: number): Promise<void>;
   fund(token: string, from: string, amount: string): Promise<void>;
   get_admin(): Promise<string>;
   get_aggregates(token: string): Promise<Aggregates>;
-  get_authorization_info(package_id: number, primary_recipient: string, claimer: string): Promise<[boolean, string | null]>;
+  get_authorization_info(
+    package_id: number,
+    primary_recipient: string,
+    claimer: string,
+  ): Promise<[boolean, string | null]>;
   get_campaign_claim_count(campaign_ref: string): Promise<number>;
   get_campaign_package_count(campaign_ref: string): Promise<number>;
   get_config(): Promise<Config>;
   get_delegate(package_id: number): Promise<string | null>;
   get_delegate_history(package_id: number): Promise<DelegateHistory[]>;
-  get_delegate_info(package_id: number): Promise<[string, number | null] | null>;
+  get_delegate_info(
+    package_id: number,
+  ): Promise<[string, number | null] | null>;
   get_package(id: number): Promise<Package>;
   get_pending_admin(): Promise<string | null>;
   get_recipient_package_count(recipient: string): Promise<number>;
@@ -423,10 +452,18 @@ export interface AidEscrowContractFunctions {
   get_version(): Promise<number>;
   init(admin: string): Promise<void>;
   is_action_paused(action: string): Promise<boolean>;
-  is_authorised_claimer(package_id: number, primary_recipient: string, claimer: string): Promise<boolean>;
+  is_authorised_claimer(
+    package_id: number,
+    primary_recipient: string,
+    claimer: string,
+  ): Promise<boolean>;
   is_campaign_paused(campaign_ref: string): Promise<boolean>;
   is_paused(): Promise<boolean>;
-  list_recipient_packages(recipient: string, cursor: number, limit: number): Promise<number[]>;
+  list_recipient_packages(
+    recipient: string,
+    cursor: number,
+    limit: number,
+  ): Promise<number[]>;
   migrate(new_version: number): Promise<void>;
   pause(): Promise<void>;
   pause_action(action: string): Promise<void>;
@@ -437,8 +474,17 @@ export interface AidEscrowContractFunctions {
   revoke(id: number): Promise<void>;
   revoke_delegate(admin: string, package_id: number): Promise<void>;
   set_config(config: Config): Promise<void>;
-  set_delegate(admin: string, package_id: number, delegate: string): Promise<void>;
-  set_delegate_with_expiry(admin: string, package_id: number, delegate: string, expires_at: number): Promise<void>;
+  set_delegate(
+    admin: string,
+    package_id: number,
+    delegate: string,
+  ): Promise<void>;
+  set_delegate_with_expiry(
+    admin: string,
+    package_id: number,
+    delegate: string,
+    expires_at: number,
+  ): Promise<void>;
   sweep_expired_delegates(limit: number): Promise<number>;
   transfer_admin(new_admin: string): Promise<void>;
   unpause(): Promise<void>;
