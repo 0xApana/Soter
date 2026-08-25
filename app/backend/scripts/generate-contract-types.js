@@ -133,6 +133,7 @@ function rustTypeToTs(rustType) {
 function generateTypeScript(spec) {
   const lines = [];
 
+  lines.push('/* eslint-disable */');
   lines.push('/**');
   lines.push(' * AUTO-GENERATED FILE — DO NOT EDIT DIRECTLY');
   lines.push(` * Generated from contract spec: ${spec.name} v${spec.version}`);
@@ -234,7 +235,7 @@ function main() {
   const tsCode = generateTypeScript(spec);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, tsCode, 'utf-8');
+  fs.writeFileSync(outPath, tsCode.replace(/\r\n/g, '\n'), 'utf-8');
 
   console.log(`[OK] TypeScript contract types generated at: ${outPath}`);
 }

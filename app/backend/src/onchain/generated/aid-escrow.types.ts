@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * AUTO-GENERATED FILE — DO NOT EDIT DIRECTLY
  * Generated from contract spec: aid_escrow v0.2.0

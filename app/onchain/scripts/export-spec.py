@@ -277,7 +277,7 @@ def main() -> None:
                 else entry / "contract-spec.json"
             )
             out_file.parent.mkdir(parents=True, exist_ok=True)
-            out_file.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")
+            out_file.write_bytes((json.dumps(spec, indent=2) + "\n").encode("utf-8"))
             print(f"[OK] Exported contract spec: {out_file}")
             print(f"   Contract: {spec['name']} v{spec['version']}")
             print(
