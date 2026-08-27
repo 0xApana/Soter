@@ -62,3 +62,6 @@ jobs:
 
       - name: Build
         run: pnpm --filter backend run build
+
+      - name: Verify contract types are current
+        run: node app/onchain/scripts/verify-types.mjs --contract aid_escrow
