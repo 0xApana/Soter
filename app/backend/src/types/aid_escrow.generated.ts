@@ -3,7 +3,6 @@
  *
  * Contract: aid_escrow
  * Version: 0.2.0
- * Generated: 2026-08-27T04:11:40.765Z
  *
  * DO NOT EDIT: This file is auto-generated. Changes will be overwritten.
  * To regenerate, run: npm run generate:contract-types

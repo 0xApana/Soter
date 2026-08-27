@@ -164,7 +164,6 @@ function generateTypescriptFile(spec) {
   output += ` *\n`;
   output += ` * Contract: ${name}\n`;
   output += ` * Version: ${version}\n`;
-  output += ` * Generated: ${spec.generated_at}\n`;
   output += ` *\n`;
   output += ` * DO NOT EDIT: This file is auto-generated. Changes will be overwritten.\n`;
   output += ` * To regenerate, run: npm run generate:contract-types\n`;
