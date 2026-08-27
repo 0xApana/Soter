@@ -2,7 +2,7 @@ import {
   AppException,
   INTEGRATION_ERROR_CODES,
 } from '../../common/constants/integration-error-codes';
-import { aid_escrowError, aid_escrowErrorMessages } from '../../types';
+import { aid_escrowError } from '../../types';
 
 /**
  * Maps Soroban contract errors to standardized backend error responses
