@@ -203,12 +203,12 @@ export interface ContractUnpausedEvent {
 
 export interface ActionPausedEvent {
   admin: string;
-  action: Symbol;
+  action: string;
 }
 
 export interface ActionUnpausedEvent {
   admin: string;
-  action: Symbol;
+  action: string;
 }
 
 export interface CampaignPausedEvent {

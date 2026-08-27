@@ -33,6 +33,7 @@ function mapRustTypeToTs(rustType) {
     bool: "boolean",
     String: "string",
     Address: "string",
+    Symbol: "string",
     "Map<Symbol, String>": "Record<string, string>",
     "Vec<Address>": "string[]",
     "Option<Address>": "string | undefined",
