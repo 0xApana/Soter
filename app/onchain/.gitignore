@@ -9,6 +9,5 @@ target
 # Generated registry (re-generated deterministically from source data)
 deployments/contract-registry.json
 
-# Auto-generated types (regenerated via `npm run generate:contract-types`)
-types/
+# Temporary types used during CI verification only
 .types-temp/
