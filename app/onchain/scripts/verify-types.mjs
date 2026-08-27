@@ -84,8 +84,8 @@ function main() {
     console.log("📝 Generating types...");
     const tempOutput = generateTypesToTemp(contractName);
 
-    // Location of committed types (in backend)
-    const committedTypes = path.join(onchainRoot, "..", "backend", "src", "types", `${contractName}.generated.ts`);
+    // Location of committed types (in onchain/types/)
+    const committedTypes = path.join(onchainRoot, "types", `${contractName}.generated.ts`);
 
     // Compare
     console.log(`📊 Comparing against committed types...`);
@@ -108,9 +108,9 @@ function main() {
       console.error(`This likely means the Rust contract changed but types weren't regenerated.`);
       console.error(``);
       console.error(`To fix this, run:`);
-      console.error(`  npm run generate:contract-types`);
+      console.error(`  node app/onchain/scripts/generate-types.mjs --contract aid_escrow`);
       console.error(``);
-      console.error(`Then commit the updated types.`);
+      console.error(`Then commit the updated file at app/onchain/types/aid_escrow.generated.ts.`);
 
       return 1;
     }
