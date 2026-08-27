@@ -41,7 +41,7 @@ export interface Package {
   created_at: number | string;
   expires_at: number | string;
   claim_starts_at: number | string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface Config {

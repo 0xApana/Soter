@@ -43,7 +43,7 @@ function mapRustTypeToTs(rustType) {
   }
 
   if (type.includes("Map<")) {
-    return "Record<string, any>";
+    return "Record<string, unknown>";
   }
 
   if (type.includes("Vec<")) {
