@@ -2,125 +2,120 @@ import {
   AppException,
   INTEGRATION_ERROR_CODES,
 } from '../../common/constants/integration-error-codes';
-import { aid_escrowError } from '../../types';
 
 /**
  * Maps Soroban contract errors to standardized backend error responses
  * Aligns with the global error handling strategy
- *
- * Uses auto-generated contract error enums from app/onchain/types/aid_escrow.generated.ts
- * to ensure type definitions stay in sync with the Rust contract.
  */
 export class SorobanErrorMapper {
   /**
    * Soroban contract error codes from AidEscrow (Rust contract)
-   * Generated from contract spec - DO NOT EDIT MANUALLY
    */
   private readonly contractErrors: Record<
     number,
     { code: number; message: string; errorCode: string }
   > = {
-    [aid_escrowError.NotInitialized]: {
+    1: {
       code: 400,
       message: 'Escrow not initialized',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.AlreadyInitialized]: {
+    2: {
       code: 409,
       message: 'Escrow already initialized',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.NotAuthorized]: {
+    3: {
       code: 403,
       message: 'Not authorized to perform this action',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_NOT_AUTHORIZED,
     },
-    [aid_escrowError.InvalidAmount]: {
+    4: {
       code: 400,
       message: 'Invalid amount',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.PackageNotFound]: {
+    5: {
       code: 404,
       message: 'Package not found',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_NOT_FOUND,
     },
-    [aid_escrowError.PackageNotActive]: {
+    6: {
       code: 400,
       message: 'Package is not active',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.PackageExpired]: {
+    7: {
       code: 410,
       message: 'Package has expired',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_PACKAGE_EXPIRED,
     },
-    [aid_escrowError.PackageNotExpired]: {
+    8: {
       code: 400,
       message: 'Package has not expired',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.InsufficientFunds]: {
+    9: {
       code: 400,
       message: 'Insufficient funds in escrow',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
     },
-    [aid_escrowError.PackageIdExists]: {
+    10: {
       code: 409,
       message: 'Package ID already exists',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.InvalidState]: {
+    11: {
       code: 400,
       message: 'Invalid state transition',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.MismatchedArrays]: {
+    12: {
       code: 400,
       message: 'Recipients and amounts arrays have different lengths',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.InsufficientSurplus]: {
+    13: {
       code: 400,
       message: 'Insufficient surplus funds',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INSUFFICIENT_FUNDS,
     },
-    [aid_escrowError.ContractPaused]: {
+    14: {
       code: 503,
       message: 'Contract is paused',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_PAUSED,
     },
-    [aid_escrowError.ClaimTooEarly]: {
+    15: {
       code: 400,
       message: 'Claim window has not started',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.InvalidProof]: {
+    16: {
       code: 400,
       message: 'Invalid claim proof',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.InvalidToken]: {
+    17: {
       code: 400,
       message: 'Invalid token contract address',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
     },
-    [aid_escrowError.TokenTransferFailed]: {
+    18: {
       code: 502,
       message: 'Token transfer failed',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_TOKEN_TRANSFER_FAILED,
     },
-    [aid_escrowError.NoPendingTransfer]: {
+    19: {
       code: 400,
       message: 'No pending admin transfer',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.InvalidPendingAdmin]: {
+    20: {
       code: 400,
       message: 'Invalid pending admin',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_INVALID_STATE,
     },
-    [aid_escrowError.BatchTooLarge]: {
+    21: {
       code: 400,
       message: 'Batch size exceeds maximum allowed',
       errorCode: INTEGRATION_ERROR_CODES.ONCHAIN_CONTRACT_ERROR,
